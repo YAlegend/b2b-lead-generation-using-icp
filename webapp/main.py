@@ -6,6 +6,8 @@ product/ICP/email-sequence files and (optionally) a first batch of leads,
 no terminal required.
 """
 
+import csv
+import io
 import os
 import sys
 from pathlib import Path
@@ -80,6 +82,17 @@ def _slug_from(url: str, description: str) -> str:
     return "my-company"
 
 
+def _parse_leads_csv(raw: str):
+    """Parse OpenOutreach's CSV stdout into (header, rows) for table display."""
+    raw = raw.strip()
+    if not raw:
+        return [], []
+    rows = list(csv.reader(io.StringIO(raw)))
+    if not rows:
+        return [], []
+    return rows[0], rows[1:]
+
+
 def _llm_env_for(provider: str, api_key: str) -> dict:
     """Env vars so OpenOutreach's own LLM calls use the same provider/key."""
     if provider == "anthropic" and api_key:
@@ -113,6 +126,7 @@ def generate(
     api_key: str = Form(""),
     bettercontact_key: str = Form(""),
     lead_count: int = Form(10),
+    with_emails: bool = Form(False),
 ):
     url = url.strip()
     description = description.strip()
@@ -171,13 +185,16 @@ def generate(
 
     leads_output = ""
     leads_error = ""
+    leads_header, leads_rows = [], []
     if bettercontact_key:
         try:
             leads_output = find_leads(
                 product_md, target_md, bettercontact_key,
                 count=lead_count,
                 llm_env=_llm_env_for(provider, api_key),
+                with_emails=with_emails,
             )
+            leads_header, leads_rows = _parse_leads_csv(leads_output)
         except LeadsError as exc:
             leads_error = str(exc)
 
@@ -193,6 +210,8 @@ def generate(
             "email_md": email_md,
             "leads_output": leads_output,
             "leads_error": leads_error,
+            "leads_header": leads_header,
+            "leads_rows": leads_rows,
         },
     )
 

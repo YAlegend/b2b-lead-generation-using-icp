@@ -70,6 +70,16 @@
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row > div { flex: 1; min-width: 160px; }
     .row > div.leads-field { max-width: 120px; }
+    .checkbox-row {
+      display: flex; align-items: flex-start; gap: 10px; margin-top: 16px;
+      min-height: 44px; padding: 4px 0; cursor: pointer; font-size: .85rem; color: var(--primary);
+    }
+    .checkbox-row input[type=checkbox] {
+      width: 18px; height: 18px; min-height: 0; flex-shrink: 0; margin-top: 2px; accent-color: var(--cta);
+    }
+    .checkbox-row input[type=checkbox]:focus-visible {
+      outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); border-radius: 4px;
+    }
     .optional { color: #94A3B8; font-weight: 400; }
     footer { margin-top: 40px; text-align: center; font-size: .8rem; color: var(--muted); }
     footer a { color: var(--cta); }
@@ -114,6 +124,11 @@
           <input type="number" id="lead_count" name="lead_count" value="10" min="1" max="200" inputmode="numeric">
         </div>
       </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="with_emails" name="with_emails" value="true">
+        <span>Include verified emails <span class="optional">(uses 1 BetterContact credit per lead — otherwise leads are name/title/company only, free)</span></span>
+      </label>
 
       <button type="submit" id="submit-btn">
         <span class="spinner" aria-hidden="true"></span>
