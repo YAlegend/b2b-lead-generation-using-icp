@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B2B Outreach Framework</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0F172A;
+      --secondary: #334155;
+      --cta: #0369A1;
+      --cta-hover: #075985;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #020617;
+      --muted: #475569;
+      --border: #E2E8F0;
+      --error-bg: #FEF2F2;
+      --error-border: #FECACA;
+      --error-text: #B91C1C;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 640px; margin: 0 auto; padding: 48px 20px;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    p.sub { color: var(--muted); margin-top: 0; margin-bottom: 32px; }
+    label { display: block; font-size: .85rem; font-weight: 600; margin: 20px 0 6px; color: var(--primary); }
+    input[type=text], input[type=url], input[type=password], input[type=number], select {
+      width: 100%; min-height: 44px; padding: 10px 12px; font-size: 1rem; font-family: inherit;
+      border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+    input::placeholder { color: #94A3B8; }
+    input:focus-visible, select:focus-visible {
+      outline: none; border-color: var(--cta); box-shadow: 0 0 0 3px rgba(3, 105, 161, .25);
+    }
+    .hint { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+    .hint a { color: var(--cta); }
+    button {
+      margin-top: 28px; width: 100%; min-height: 48px; padding: 13px; font-size: 1rem; font-weight: 600;
+      font-family: inherit; border: none; border-radius: 8px; background: var(--cta); color: white;
+      cursor: pointer; transition: background-color 150ms ease;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    button:hover { background: var(--cta-hover); }
+    button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .35); }
+    button:disabled { opacity: .7; cursor: not-allowed; }
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      animation: spin .7s linear infinite; display: none;
+    }
+    button[aria-busy="true"] .spinner { display: inline-block; }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; border-top-color: rgba(255,255,255,.4); }
+      * { transition: none !important; }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error {
+      background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
+      padding: 12px 14px; border-radius: 8px; font-size: .88rem; margin-bottom: 20px;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 160px; }
+    .row > div.leads-field { max-width: 120px; }
+    .optional { color: #94A3B8; font-weight: 400; }
+    footer { margin-top: 40px; text-align: center; font-size: .8rem; color: var(--muted); }
+    footer a { color: var(--cta); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>B2B Outreach Framework</h1>
+    <p class="sub">Give it a company URL. It finds leads and drafts your cold outreach.</p>
+  </header>
+
+  {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+
+  <main>
+    <form method="post" action="/generate" id="generate-form">
+      <label for="url">Company website</label>
+      <input type="url" id="url" name="url" autocomplete="url" placeholder="https://yourcompany.com">
+      <div class="hint">Or leave blank and describe your company below.</div>
+
+      <label for="description">Description <span class="optional">(optional if URL given)</span></label>
+      <input type="text" id="description" name="description" autocomplete="off" placeholder="We sell X to Y, minimum $15k projects">
+
+      <label for="provider">AI provider</label>
+      <select id="provider" name="provider">
+        {% for key, cfg in providers.items() %}
+        <option value="{{ key }}"{% if key == 'groq' %} selected{% endif %}>{{ cfg.label }}</option>
+        {% endfor %}
+      </select>
+      <div class="hint">Groq is free with no key needed if the server has one configured. Otherwise paste your own key below.</div>
+
+      <label for="api_key">API key <span class="optional">(only needed for providers that require one)</span></label>
+      <input type="password" id="api_key" name="api_key" autocomplete="off" placeholder="sk-... / AIza... / gsk_...">
+
+      <div class="row">
+        <div>
+          <label for="bettercontact_key">BetterContact key <span class="optional">(optional — finds leads)</span></label>
+          <input type="password" id="bettercontact_key" name="bettercontact_key" autocomplete="off" placeholder="bc_...">
+          <div class="hint">Free at <a href="https://bettercontact.rocks" target="_blank" rel="noopener">bettercontact.rocks</a></div>
+        </div>
+        <div class="leads-field">
+          <label for="lead_count">Leads</label>
+          <input type="number" id="lead_count" name="lead_count" value="10" min="1" max="200" inputmode="numeric">
+        </div>
+      </div>
+
+      <button type="submit" id="submit-btn">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="btn-label">Generate Outreach System &rarr;</span>
+      </button>
+    </form>
+  </main>
+
+  <footer>
+    No install, no terminal. <a href="https://github.com/YAlegend/b2b-lead-generation-using-icp" target="_blank" rel="noopener">View on GitHub</a>
+  </footer>
+
+  <script>
+    document.getElementById('generate-form').addEventListener('submit', function () {
+      var btn = document.getElementById('submit-btn');
+      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true;
+      btn.querySelector('.btn-label').textContent = 'Generating… this can take a minute';
+    });
+  </script>
+</body>
+</html>

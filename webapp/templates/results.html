@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your Outreach System — {{ slug }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0F172A;
+      --secondary: #334155;
+      --cta: #0369A1;
+      --cta-hover: #075985;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #020617;
+      --muted: #475569;
+      --border: #E2E8F0;
+      --error-bg: #FEF2F2;
+      --error-border: #FECACA;
+      --error-text: #B91C1C;
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 760px; margin: 0 auto; padding: 40px 20px;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; color: var(--primary); margin-bottom: 24px; }
+    h1 code { background: var(--border); padding: 2px 6px; border-radius: 4px; font-size: .95em; }
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab {
+      padding: 10px 16px; cursor: pointer; font-size: .9rem; font-weight: 600; font-family: inherit;
+      color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent;
+      transition: color 150ms ease, border-color 150ms ease;
+    }
+    .tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--cta); }
+    .tab:hover { color: var(--primary); }
+    .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); border-radius: 4px; }
+    .panel[hidden] { display: none; }
+    pre {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; white-space: pre-wrap; word-wrap: break-word;
+      font-size: .85rem; line-height: 1.6; max-height: 60vh; overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .actions { margin: 10px 0 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+    button, a.btn {
+      padding: 8px 14px; min-height: 44px; font-size: .85rem; font-weight: 600; font-family: inherit;
+      border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+      transition: background-color 150ms ease, border-color 150ms ease;
+    }
+    button:hover, a.btn:hover { background: var(--bg); border-color: var(--cta); }
+    button:focus-visible, a.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); }
+    button.primary { background: var(--cta); border-color: var(--cta); color: white; }
+    button.primary:hover { background: var(--cta-hover); border-color: var(--cta-hover); }
+    button[data-copied="true"] { border-color: #16A34A; color: #16A34A; }
+    section { margin-bottom: 32px; }
+    section h2 { font-size: 1rem; font-weight: 700; color: var(--primary); }
+    .warn {
+      background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
+      padding: 12px 14px; border-radius: 8px; font-size: .88rem;
+    }
+    .empty { color: var(--muted); font-size: .9rem; }
+    footer { margin-top: 20px; text-align: center; }
+    footer a { color: var(--cta); }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <h1>Your outreach system for <code>{{ slug }}</code></h1>
+
+  <div class="tabs" role="tablist" aria-label="Generated files">
+    <button class="tab" role="tab" id="tab-product" aria-controls="panel-product" aria-selected="true" data-tab="product">Product</button>
+    <button class="tab" role="tab" id="tab-target" aria-controls="panel-target" aria-selected="false" tabindex="-1" data-tab="target">ICP</button>
+    <button class="tab" role="tab" id="tab-email" aria-controls="panel-email" aria-selected="false" tabindex="-1" data-tab="email">Email Sequence</button>
+  </div>
+
+  <div class="panel" id="panel-product" role="tabpanel" aria-labelledby="tab-product" tabindex="0">
+    <pre id="content-product">{{ product_md }}</pre>
+    <div class="actions">
+      <button class="primary" onclick="download('product', '{{ slug }}-product.md')">Download product.md</button>
+      <button onclick="copyPanel('product', this)">Copy</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-target" role="tabpanel" aria-labelledby="tab-target" tabindex="0" hidden>
+    <pre id="content-target">{{ target_md }}</pre>
+    <div class="actions">
+      <button class="primary" onclick="download('target', '{{ slug }}-target.md')">Download target.md</button>
+      <button onclick="copyPanel('target', this)">Copy</button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-email" role="tabpanel" aria-labelledby="tab-email" tabindex="0" hidden>
+    <pre id="content-email">{{ email_md }}</pre>
+    <div class="actions">
+      <button class="primary" onclick="download('email', '{{ slug }}-email-sequence.md')">Download email-sequence.md</button>
+      <button onclick="copyPanel('email', this)">Copy</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>Leads</h2>
+    {% if leads_output %}
+      <pre>{{ leads_output }}</pre>
+    {% elif leads_error %}
+      <p class="warn" role="alert">{{ leads_error }}</p>
+    {% else %}
+      <p class="empty">No BetterContact key was provided, so lead search was skipped.</p>
+    {% endif %}
+  </section>
+
+  <footer>
+    <a href="/">&larr; Start another</a>
+  </footer>
+
+  <script>
+    var tabs = Array.from(document.querySelectorAll('.tab'));
+
+    function activate(tab) {
+      tabs.forEach(function (t) {
+        var selected = t === tab;
+        t.setAttribute('aria-selected', selected);
+        t.tabIndex = selected ? 0 : -1;
+        document.getElementById('panel-' + t.dataset.tab).hidden = !selected;
+      });
+      tab.focus();
+    }
+
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { activate(tab); });
+      tab.addEventListener('keydown', function (e) {
+        var next;
+        if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+        else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+        else if (e.key === 'Home') next = tabs[0];
+        else if (e.key === 'End') next = tabs[tabs.length - 1];
+        if (next) { e.preventDefault(); activate(next); }
+      });
+    });
+
+    function download(key, filename) {
+      var text = document.getElementById('content-' + key).textContent;
+      var blob = new Blob([text], { type: 'text/markdown' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function copyPanel(key, btn) {
+      var text = document.getElementById('content-' + key).textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        var original = btn.textContent;
+        btn.textContent = 'Copied';
+        btn.setAttribute('data-copied', 'true');
+        setTimeout(function () {
+          btn.textContent = original;
+          btn.removeAttribute('data-copied');
+        }, 1500);
+      });
+    }
+  </script>
+</body>
+</html>
