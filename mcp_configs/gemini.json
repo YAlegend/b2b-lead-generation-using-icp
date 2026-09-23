@@ -1,0 +1,8 @@
+{
+  "note": "Gemini connects via HTTP. Run the server first:",
+  "start_server": "python3 mcp_server.py --http",
+  "connect": "Add http://localhost:8000 as a tool endpoint in Gemini Advanced",
+  "env": {
+    "GEMINI_API_KEY": "your-gemini-key"
+  }
+}

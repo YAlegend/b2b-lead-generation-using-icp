@@ -1,0 +1,27 @@
+# ── SECURITY — never commit these ────────────────────
+.env
+*.key
+*.pem
+*.p12
+
+# ── Campaign data (personal/sensitive) ───────────────
+*/leads*.csv
+*/leads_quality.csv
+*/replies_log.json
+*/.loop_state.json
+
+# ── Python ────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# ── OS ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── OpenOutreach local data ───────────────────────────
+~/.openoutreach/

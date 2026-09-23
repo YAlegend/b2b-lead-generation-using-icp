@@ -1,0 +1,14 @@
+{
+  "note": "For ChatGPT, Gemini, and any web-based LLM that connects via HTTP.",
+  "start_server": "python3 PATH_TO_REPO/mcp_server.py --http",
+  "server_url": "http://localhost:8000",
+  "instructions": [
+    "1. Start the server with the command above",
+    "2. For ChatGPT: Settings → Beta Features → Tools → Add: http://localhost:8000",
+    "3. For Gemini: Extensions → Add tool endpoint: http://localhost:8000",
+    "4. Note: web LLMs need a public URL — use ngrok to expose localhost publicly",
+    "   Install ngrok: https://ngrok.com",
+    "   Run: ngrok http 8000",
+    "   Use the https://xxx.ngrok.io URL instead of localhost"
+  ]
+}

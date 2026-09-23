@@ -1,0 +1,14 @@
+{
+  "note": "For Hermes Agent with local Ollama — zero API cost.",
+  "setup": [
+    "1. Install Ollama: https://ollama.ai",
+    "2. Pull a model: ollama pull nous-hermes2",
+    "3. Start server: OPENAI_BASE_URL=http://localhost:11434/v1 OPENAI_API_KEY=ollama python3 PATH_TO_REPO/mcp_server.py",
+    "4. Run Hermes Agent: hermes run 'Generate leads for https://yourcompany.com'"
+  ],
+  "env": {
+    "OPENAI_API_KEY": "ollama",
+    "OPENAI_BASE_URL": "http://localhost:11434/v1",
+    "OPENAI_MODEL": "nous-hermes2"
+  }
+}

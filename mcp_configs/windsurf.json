@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "b2b-outreach-framework": {
+      "command": "python3",
+      "args": ["PATH_TO_REPO/mcp_server.py"],
+      "env": {
+        "ANTHROPIC_API_KEY": "YOUR_KEY_HERE"
+      }
+    }
+  }
+}
