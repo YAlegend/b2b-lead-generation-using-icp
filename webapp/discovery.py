@@ -43,18 +43,20 @@ explanation, matching exactly this shape:
   "locations": ["..."]
 }
 
-Pick 2-6 job titles that appear across the document's verticals. Pick 2-5
-industry or keyword terms. Pick company size ranges (from the fixed list
-above) that best match any company-size or stage language in the document —
-default to a broad spread like ["1-10","11-50","51-200"] if none is stated.
-Pick locations only if the document names a specific geography; otherwise
-use an empty list. If the document gives no usable signal for a field, use
-a sensible generic default rather than an empty array (except locations)."""
+Pick at most 4 job titles, each a short plain title only — no acronyms in
+parentheses, no slashes joining alternatives, e.g. "VP Engineering" not
+"VP / Director of Engineering (VP Eng)". Pick at most 3 industry or
+keyword terms, each 1-2 words. Pick at most 2 company size ranges from
+the fixed list above (not the whole list) that best match any
+company-size or stage language in the document — default to ["1-10",
+"11-50"] if none is stated. Pick locations only if the document names a
+specific geography, at most 2, otherwise use an empty list. Keep every
+string short. Total response under 500 characters."""
 
 
 def _extract_criteria(target_md: str, llm_provider: str, llm_api_key: str) -> dict:
     try:
-        raw = call_llm(llm_provider, llm_api_key, target_md, CRITERIA_SYSTEM, max_tokens=400)
+        raw = call_llm(llm_provider, llm_api_key, target_md, CRITERIA_SYSTEM, max_tokens=600)
     except LLMError as exc:
         raise DiscoveryError(f"Could not analyze target market: {exc}") from exc
 
