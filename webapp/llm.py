@@ -7,7 +7,26 @@ local .env file here, since the web app is multi-tenant.
 """
 
 import os
+import re
+import time
+
 import requests
+
+MAX_RETRIES = 3
+
+
+def _retry_delay(resp, attempt: int) -> float:
+    """Seconds to wait before retrying a 429, from Retry-After or the body, else backoff."""
+    header = resp.headers.get("Retry-After")
+    if header:
+        try:
+            return min(float(header), 30)
+        except ValueError:
+            pass
+    match = re.search(r"try again in ([\d.]+)s", resp.text or "", re.IGNORECASE)
+    if match:
+        return min(float(match.group(1)), 30)
+    return min(2 ** attempt, 15)
 
 # label, needs_key, default_model, help_url
 PROVIDERS = {
@@ -56,27 +75,31 @@ class LLMError(RuntimeError):
 
 def _chat_completions(base_url: str, api_key: str, model: str,
                        system: str, prompt: str) -> str:
-    """Call an OpenAI-compatible /chat/completions endpoint."""
-    resp = requests.post(
-        f"{base_url}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": prompt},
-            ],
-            "max_tokens": 4096,
-        },
-        timeout=120,
-    )
-    if resp.status_code >= 400:
-        raise LLMError(f"{base_url} returned {resp.status_code}: {resp.text[:300]}")
-    data = resp.json()
-    return data["choices"][0]["message"]["content"]
+    """Call an OpenAI-compatible /chat/completions endpoint, retrying on 429."""
+    for attempt in range(MAX_RETRIES):
+        resp = requests.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 4096,
+            },
+            timeout=120,
+        )
+        if resp.status_code == 429 and attempt < MAX_RETRIES - 1:
+            time.sleep(_retry_delay(resp, attempt))
+            continue
+        if resp.status_code >= 400:
+            raise LLMError(f"{base_url} returned {resp.status_code}: {resp.text[:300]}")
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
 
 
 def call_llm(provider: str, api_key: str, prompt: str, system: str,
@@ -110,31 +133,43 @@ def call_llm(provider: str, api_key: str, prompt: str, system: str,
     if provider == "anthropic":
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
-        try:
-            msg = client.messages.create(
-                model=model,
-                max_tokens=4096,
-                system=system,
-                messages=[{"role": "user", "content": prompt}],
-            )
-        except Exception as exc:
-            raise LLMError(str(exc)) from exc
-        return msg.content[0].text
+        for attempt in range(MAX_RETRIES):
+            try:
+                msg = client.messages.create(
+                    model=model,
+                    max_tokens=4096,
+                    system=system,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return msg.content[0].text
+            except anthropic.RateLimitError as exc:
+                if attempt == MAX_RETRIES - 1:
+                    raise LLMError(str(exc)) from exc
+                retry_after = getattr(exc, "response", None)
+                header = retry_after.headers.get("retry-after") if retry_after is not None else None
+                time.sleep(min(float(header), 30) if header else min(2 ** attempt, 15))
+            except Exception as exc:
+                raise LLMError(str(exc)) from exc
 
     if provider == "gemini":
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{model}:generateContent?key={api_key}"
         )
-        resp = requests.post(
-            url,
-            json={
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "systemInstruction": {"parts": [{"text": system}]},
-                "generationConfig": {"maxOutputTokens": 4096},
-            },
-            timeout=120,
-        )
+        for attempt in range(MAX_RETRIES):
+            resp = requests.post(
+                url,
+                json={
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "generationConfig": {"maxOutputTokens": 4096},
+                },
+                timeout=120,
+            )
+            if resp.status_code == 429 and attempt < MAX_RETRIES - 1:
+                time.sleep(_retry_delay(resp, attempt))
+                continue
+            break
         if resp.status_code >= 400:
             raise LLMError(f"Gemini returned {resp.status_code}: {resp.text[:300]}")
         data = resp.json()
