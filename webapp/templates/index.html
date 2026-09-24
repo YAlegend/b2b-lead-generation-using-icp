@@ -81,6 +81,11 @@
       outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); border-radius: 4px;
     }
     .optional { color: #94A3B8; font-weight: 400; }
+    .section-label {
+      margin: 32px 0 -4px; padding-top: 20px; border-top: 1px solid var(--border);
+      font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+      color: var(--muted);
+    }
     footer { margin-top: 40px; text-align: center; font-size: .8rem; color: var(--muted); }
     footer a { color: var(--cta); }
   </style>
@@ -113,12 +118,35 @@
       <label for="api_key">API key <span class="optional">(only needed for providers that require one)</span></label>
       <input type="password" id="api_key" name="api_key" autocomplete="off" placeholder="sk-... / AIza... / gsk_...">
 
+      <div class="section-label">Lead finding <span class="optional">(optional — skip to generate files only)</span></div>
+
+      <label for="discovery_provider">Provider</label>
+      <select id="discovery_provider" name="discovery_provider">
+        <option value="bettercontact" selected>BetterContact (via OpenOutreach)</option>
+        <option value="apollo">Apollo</option>
+        <option value="rocketreach">RocketReach</option>
+      </select>
+      <div class="hint">Pick whichever service you actually have a key for — only that one's key below is used.</div>
+
+      <div id="key-bettercontact" class="provider-key">
+        <label for="bettercontact_key">BetterContact key</label>
+        <input type="password" id="bettercontact_key" name="bettercontact_key" autocomplete="off" placeholder="bc_...">
+        <div class="hint">Free at <a href="https://bettercontact.rocks" target="_blank" rel="noopener">bettercontact.rocks</a>. Runs the full OpenOutreach pipeline.</div>
+      </div>
+
+      <div id="key-apollo" class="provider-key" hidden>
+        <label for="apollo_key">Apollo key</label>
+        <input type="password" id="apollo_key" name="apollo_key" autocomplete="off" placeholder="your Apollo API key">
+        <div class="hint">Get a key at <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener">apollo.io</a>. Searched directly by this app, independent of OpenOutreach/BetterContact.</div>
+      </div>
+
+      <div id="key-rocketreach" class="provider-key" hidden>
+        <label for="rocketreach_key">RocketReach key</label>
+        <input type="password" id="rocketreach_key" name="rocketreach_key" autocomplete="off" placeholder="your RocketReach API key">
+        <div class="hint">Get a key at <a href="https://rocketreach.co/api" target="_blank" rel="noopener">rocketreach.co</a>. Searched directly by this app, independent of OpenOutreach/BetterContact.</div>
+      </div>
+
       <div class="row">
-        <div>
-          <label for="bettercontact_key">BetterContact key <span class="optional">(optional — finds leads)</span></label>
-          <input type="password" id="bettercontact_key" name="bettercontact_key" autocomplete="off" placeholder="bc_...">
-          <div class="hint">Free at <a href="https://bettercontact.rocks" target="_blank" rel="noopener">bettercontact.rocks</a></div>
-        </div>
         <div class="leads-field">
           <label for="lead_count">Leads</label>
           <input type="number" id="lead_count" name="lead_count" value="10" min="1" max="200" inputmode="numeric">
@@ -127,7 +155,7 @@
 
       <label class="checkbox-row">
         <input type="checkbox" id="with_emails" name="with_emails" value="true">
-        <span>Include verified emails <span class="optional">(uses 1 BetterContact credit per lead — otherwise leads are name/title/company only, free)</span></span>
+        <span>Include verified emails <span class="optional">(spends a credit per lead with your chosen provider — otherwise leads are name/title/company only, free)</span></span>
       </label>
 
       <button type="submit" id="submit-btn">
@@ -148,6 +176,15 @@
       btn.disabled = true;
       btn.querySelector('.btn-label').textContent = 'Generating… this can take a minute';
     });
+
+    var providerSelect = document.getElementById('discovery_provider');
+    function syncProviderKeyField() {
+      ['bettercontact', 'apollo', 'rocketreach'].forEach(function (name) {
+        document.getElementById('key-' + name).hidden = providerSelect.value !== name;
+      });
+    }
+    providerSelect.addEventListener('change', syncProviderKeyField);
+    syncProviderKeyField();
   </script>
 </body>
 </html>

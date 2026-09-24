@@ -24,6 +24,7 @@ from run import fetch_website, PRODUCT_SYSTEM, PRODUCT_PROMPT, TARGET_SYSTEM, TA
 
 from llm import call_llm, PROVIDERS, LLMError  # noqa: E402
 from leads import find_leads, LeadsError  # noqa: E402
+from discovery import find_leads_apollo, find_leads_rocketreach, DiscoveryError  # noqa: E402
 
 app = FastAPI(title="B2B Outreach Framework")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -124,7 +125,10 @@ def generate(
     description: str = Form(""),
     provider: str = Form(...),
     api_key: str = Form(""),
+    discovery_provider: str = Form("bettercontact"),
     bettercontact_key: str = Form(""),
+    apollo_key: str = Form(""),
+    rocketreach_key: str = Form(""),
     lead_count: int = Form(10),
     with_emails: bool = Form(False),
 ):
@@ -132,6 +136,8 @@ def generate(
     description = description.strip()
     api_key = api_key.strip()
     bettercontact_key = bettercontact_key.strip()
+    apollo_key = apollo_key.strip()
+    rocketreach_key = rocketreach_key.strip()
 
     if not url and not description:
         return templates.TemplateResponse(
@@ -186,17 +192,32 @@ def generate(
     leads_output = ""
     leads_error = ""
     leads_header, leads_rows = [], []
-    if bettercontact_key:
-        try:
+    try:
+        if discovery_provider == "apollo" and apollo_key:
+            leads_output = find_leads_apollo(
+                target_md, apollo_key, provider, api_key,
+                count=lead_count, with_emails=with_emails,
+            )
+        elif discovery_provider == "rocketreach" and rocketreach_key:
+            leads_output = find_leads_rocketreach(
+                target_md, rocketreach_key, provider, api_key,
+                count=lead_count, with_emails=with_emails,
+            )
+        elif discovery_provider == "bettercontact" and bettercontact_key:
             leads_output = find_leads(
                 product_md, target_md, bettercontact_key,
                 count=lead_count,
                 llm_env=_llm_env_for(provider, api_key),
                 with_emails=with_emails,
             )
-            leads_header, leads_rows = _parse_leads_csv(leads_output)
-        except LeadsError as exc:
-            leads_error = str(exc)
+        elif bettercontact_key or apollo_key or rocketreach_key:
+            leads_error = (
+                f"You picked \"{discovery_provider}\" as the lead-finding provider "
+                "but didn't give it a key."
+            )
+        leads_header, leads_rows = _parse_leads_csv(leads_output)
+    except (LeadsError, DiscoveryError) as exc:
+        leads_error = str(exc)
 
     slug = _slug_from(url, description)
 

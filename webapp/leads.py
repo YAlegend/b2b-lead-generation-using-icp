@@ -35,7 +35,13 @@ def _install_openoutreach(timeout: int = 180) -> None:
 def find_leads(product_md: str, target_md: str, bettercontact_key: str,
                count: int = 10, llm_env: dict | None = None,
                with_emails: bool = False, timeout: int = 120) -> str:
-    """Run OpenOutreach end-to-end and return its raw stdout output."""
+    """Run OpenOutreach end-to-end and return its raw stdout output.
+
+    BetterContact is a hard requirement of OpenOutreach's own finder — its
+    Lead Finder API is what performs discovery itself, not just email
+    lookup — so there is no provider-choice here. See discovery.py for the
+    BetterContact-free alternative (direct Apollo/RocketReach search).
+    """
     if not bettercontact_key:
         raise LeadsError("A BetterContact API key is required to find leads.")
 
