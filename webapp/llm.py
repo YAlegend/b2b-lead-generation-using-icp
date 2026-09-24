@@ -74,7 +74,7 @@ class LLMError(RuntimeError):
 
 
 def _chat_completions(base_url: str, api_key: str, model: str,
-                       system: str, prompt: str) -> str:
+                       system: str, prompt: str, max_tokens: int) -> str:
     """Call an OpenAI-compatible /chat/completions endpoint, retrying on 429."""
     for attempt in range(MAX_RETRIES):
         resp = requests.post(
@@ -89,7 +89,7 @@ def _chat_completions(base_url: str, api_key: str, model: str,
                     {"role": "system", "content": system},
                     {"role": "user", "content": prompt},
                 ],
-                "max_tokens": 4096,
+                "max_tokens": max_tokens,
             },
             timeout=120,
         )
@@ -103,8 +103,16 @@ def _chat_completions(base_url: str, api_key: str, model: str,
 
 
 def call_llm(provider: str, api_key: str, prompt: str, system: str,
-             model: str = "") -> str:
-    """Call the chosen provider and return the generated text."""
+             model: str = "", max_tokens: int = 2048) -> str:
+    """Call the chosen provider and return the generated text.
+
+    `max_tokens` matters more than it looks: several providers' rate
+    limiters (Groq's TPM cap in particular) reserve the full requested
+    max_tokens against your quota, not just what's actually generated —
+    so a smaller value here directly reduces how easily a multi-call
+    pipeline trips a 429. Pass a small value for short structured output
+    (e.g. JSON) and the default is fine for markdown-doc generation.
+    """
     if provider not in PROVIDERS:
         raise LLMError(f"Unknown provider: {provider}")
 
@@ -118,17 +126,17 @@ def call_llm(provider: str, api_key: str, prompt: str, system: str,
         key = api_key or os.getenv("GROQ_API_KEY", "")
         if not key:
             raise LLMError("Server has no GROQ_API_KEY configured and none was provided.")
-        return _chat_completions("https://api.groq.com/openai/v1", key, model, system, prompt)
+        return _chat_completions("https://api.groq.com/openai/v1", key, model, system, prompt, max_tokens)
 
     if provider == "openai":
-        return _chat_completions("https://api.openai.com/v1", api_key, model, system, prompt)
+        return _chat_completions("https://api.openai.com/v1", api_key, model, system, prompt, max_tokens)
 
     if provider == "openrouter":
-        return _chat_completions("https://openrouter.ai/api/v1", api_key, model, system, prompt)
+        return _chat_completions("https://openrouter.ai/api/v1", api_key, model, system, prompt, max_tokens)
 
     if provider == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        return _chat_completions(base_url, "ollama", model, system, prompt)
+        return _chat_completions(base_url, "ollama", model, system, prompt, max_tokens)
 
     if provider == "anthropic":
         import anthropic
@@ -137,7 +145,7 @@ def call_llm(provider: str, api_key: str, prompt: str, system: str,
             try:
                 msg = client.messages.create(
                     model=model,
-                    max_tokens=4096,
+                    max_tokens=max_tokens,
                     system=system,
                     messages=[{"role": "user", "content": prompt}],
                 )
@@ -162,7 +170,7 @@ def call_llm(provider: str, api_key: str, prompt: str, system: str,
                 json={
                     "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                     "systemInstruction": {"parts": [{"text": system}]},
-                    "generationConfig": {"maxOutputTokens": 4096},
+                    "generationConfig": {"maxOutputTokens": max_tokens},
                 },
                 timeout=120,
             )

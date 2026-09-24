@@ -54,7 +54,7 @@ a sensible generic default rather than an empty array (except locations)."""
 
 def _extract_criteria(target_md: str, llm_provider: str, llm_api_key: str) -> dict:
     try:
-        raw = call_llm(llm_provider, llm_api_key, target_md, CRITERIA_SYSTEM)
+        raw = call_llm(llm_provider, llm_api_key, target_md, CRITERIA_SYSTEM, max_tokens=400)
     except LLMError as exc:
         raise DiscoveryError(f"Could not analyze target market: {exc}") from exc
 
