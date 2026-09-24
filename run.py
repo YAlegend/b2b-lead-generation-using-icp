@@ -200,6 +200,9 @@ def call_llm(client_type: str, prompt: str, system: str = "") -> str:
 PRODUCT_SYSTEM = """You are a B2B marketing expert writing a product description
 for use in an AI-powered lead generation tool called OpenOutreach.
 Write in first person ("We..."). Be specific, not generic.
+Websites often show sample data in product screenshots or demos (example
+tasks, fake customers, placeholder dashboards). Ignore it — describe only what
+the company itself sells and who it sells to.
 Output ONLY the markdown content — no preamble, no explanation."""
 
 PRODUCT_PROMPT = """
@@ -240,6 +243,9 @@ If not found, write: "Contact us to discuss project scope."]
 TARGET_SYSTEM = """You are a B2B sales expert writing an Ideal Customer Profile (ICP)
 for use in an AI-powered lead generation tool called OpenOutreach.
 Be specific about job titles, company types, and buying signals.
+Websites often show sample data in product screenshots or demos (example
+tasks, fake customers, placeholder dashboards). Ignore it — describe only what
+the company itself sells and who it sells to.
 Output ONLY the markdown content — no preamble, no explanation."""
 
 TARGET_PROMPT = """

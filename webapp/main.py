@@ -50,7 +50,11 @@ Write a 3-email cold outreach sequence for this company, following these rules:
 - Subject line under 8 words, no clickbait, no ALL CAPS
 - One soft CTA per email (a 20-minute call) — never a hard sell
 - First line of Email 1 must reference something specific about the
-  recipient, not the sender
+  recipient, not the sender — use a bracketed placeholder like
+  [specific detail about recipient's company] since you don't know them
+- Never invent facts: no made-up statistics, results, customer names, or
+  events (e.g. "you announced last week"). Only use claims from the
+  PRODUCT text above; otherwise use a [placeholder]
 - Tone must match the target market's industry (formal for professional
   services, concise/peer-level for tech, etc.)
 
