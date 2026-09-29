@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+{% include "_head.html" %}
+  <title>Find Leads — Outreach Framework</title>
+  <style>
+    .search {
+      position: relative; background: var(--panel-soft); border-radius: 18px;
+      border: 1px solid transparent; transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    }
+    .search:focus-within { background: var(--panel); border-color: var(--ink); box-shadow: var(--focus); }
+    .search textarea {
+      display: block; min-height: 140px; resize: vertical; background: none; border: none; box-shadow: none;
+      padding: 26px 96px 26px 28px; font-size: 1.15rem; border-radius: 18px;
+    }
+    .search textarea:focus-visible { box-shadow: none; border: none; background: none; }
+    .search-btn { position: absolute; right: 16px; bottom: 16px; width: 56px; min-height: 56px; padding: 0; }
+    .search-btn .spinner { display: none; }
+    .search-btn[aria-busy="true"] svg { display: none; }
+    .search-btn[aria-busy="true"] .spinner { display: block; }
+
+    .examples { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 18px; }
+    .examples .label { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); align-self: center; margin-right: 4px; }
+    .example {
+      font: inherit; font-size: .85rem; padding: 8px 16px; min-height: 38px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); transition: border-color 150ms ease;
+    }
+    .example:hover { border-color: var(--ink); }
+    .example:focus-visible { outline: none; box-shadow: var(--focus); }
+
+    details.settings { margin-top: 28px; border: 1px solid var(--line-2); border-radius: 16px; }
+    details.settings summary {
+      cursor: pointer; padding: 18px 22px; list-style: none; display: flex; gap: 12px; align-items: center;
+      font-size: .78rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    }
+    details.settings summary::-webkit-details-marker { display: none; }
+    details.settings summary:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 16px; }
+    .key-status { margin-left: auto; font-size: .8rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .key-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+    .key-status.ok::before { background: #7CB518; }
+    details.settings summary::after { content: "+"; font-size: 1.2rem; font-weight: 400; color: var(--muted); }
+    details.settings[open] summary::after { content: "–"; }
+    .settings-body { padding: 0 22px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+    .settings-body .full { grid-column: 1 / -1; }
+    .settings-body label.field { margin-top: 18px; }
+    .key-status { white-space: nowrap; }
+
+    .reading { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 28px; }
+    .reading .label { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+    .results-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+    .results-head h2 { margin: 0; }
+    .count { font-family: var(--heading); font-size: 3rem; line-height: 1; letter-spacing: -.04em; margin-right: 10px; }
+    .empty { background: var(--panel-soft); border-radius: 14px; padding: 36px; text-align: center; color: var(--muted); }
+
+    @media (max-width: 720px) {
+      .settings-body { grid-template-columns: 1fr; }
+      .search textarea { padding: 20px 84px 20px 20px; font-size: 1.02rem; }
+      .count { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+{% set active = 'find' %}{% include "_nav.html" %}
+
+  <main>
+    <section class="panel">
+      <div class="inner">
+        <span class="eyebrow">Lead search</span>
+        <h1>Help me find people</h1>
+        <p class="lede">Describe who you want to reach in plain English. We turn it into filters and search Apollo or RocketReach for you.</p>
+
+        {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+
+        <form method="post" action="/find" id="find-form">
+          <div class="hp" aria-hidden="true"><label>Leave this empty <input type="text" name="company_fax" tabindex="-1" autocomplete="off"></label></div>
+          <div class="search">
+            <label for="query" class="sr-only">Who are you looking for?</label>
+            <textarea id="query" name="query" placeholder="Heads of Marketing at B2B SaaS companies in London with 50–200 employees" required>{{ form.query or '' }}</textarea>
+            <button type="submit" class="btn search-btn" id="search-btn" aria-label="Search">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="examples">
+            <span class="label">Try</span>
+            <button type="button" class="example">CTOs at fintech startups in New York</button>
+            <button type="button" class="example">Operations managers at logistics companies</button>
+            <button type="button" class="example">Founders of marketing agencies in Germany</button>
+          </div>
+
+          <details class="settings" id="settings">
+            <summary>Search settings <span class="key-status" id="key-status"></span></summary>
+            <div class="settings-body">
+              <div>
+                <label class="field" for="lead_provider">Lead database</label>
+                <select id="lead_provider" name="lead_provider">
+                  <option value="apollo"{% if form.lead_provider == 'apollo' %} selected{% endif %}>Apollo</option>
+                  <option value="rocketreach"{% if form.lead_provider == 'rocketreach' %} selected{% endif %}>RocketReach</option>
+                </select>
+              </div>
+              <div>
+                <label class="field" for="lead_key">API key</label>
+                <input type="password" id="lead_key" name="lead_key" autocomplete="off" placeholder="Paste your key">
+                <div class="hint" id="key-hint"></div>
+              </div>
+              <div>
+                <label class="field" for="provider">AI that reads your search</label>
+                <select id="provider" name="provider">
+                  {% for key, cfg in providers.items() %}
+                  <option value="{{ key }}"{% if key == (form.provider or 'groq') %} selected{% endif %}>{{ cfg.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="field" for="api_key">AI key <span class="optional">(blank = server's free Groq key)</span></label>
+                <input type="password" id="api_key" name="api_key" autocomplete="off" placeholder="Optional">
+              </div>
+              <div>
+                <label class="field" for="lead_count">How many people</label>
+                <input type="number" id="lead_count" name="lead_count" value="{{ form.lead_count or 10 }}" min="1" max="100" inputmode="numeric">
+              </div>
+              <div class="full">
+                <label class="checkbox-row">
+                  <input type="checkbox" name="with_emails" value="true"{% if form.with_emails %} checked{% endif %}>
+                  <span>Reveal verified emails <span class="optional">— uses 1 credit per person from your plan. Leave off to preview names, titles and companies.</span></span>
+                </label>
+                <label class="checkbox-row">
+                  <input type="checkbox" id="remember">
+                  <span>Remember my keys in this browser <span class="optional">— stored only on this device, never on our server.</span></span>
+                </label>
+              </div>
+            </div>
+          </details>
+        </form>
+      </div>
+    </section>
+
+    {% if searched %}
+    <section class="panel" aria-live="polite">
+      <div class="inner">
+        <div class="reading">
+          <span class="label">We searched for</span>
+          {% for t in criteria.job_titles %}<span class="chip"><b>Title</b> {{ t }}</span>{% endfor %}
+          {% for k in criteria.industries_or_keywords %}<span class="chip"><b>Industry</b> {{ k }}</span>{% endfor %}
+          {% for s in criteria.company_size_ranges %}<span class="chip"><b>Size</b> {{ s }}</span>{% endfor %}
+          {% for l in criteria.locations %}<span class="chip"><b>Location</b> {{ l }}</span>{% endfor %}
+        </div>
+
+        {% if rows %}
+          {% set has_email = rows | selectattr('email') | list | length > 0 %}
+          <div class="results-head">
+            <h2><span class="count">{{ rows | length }}</span>{{ 'person' if rows | length == 1 else 'people' }} found</h2>
+            <button type="button" class="btn small" id="download-csv">Download CSV</button>
+          </div>
+          <pre id="csv" hidden>{{ csv_text }}</pre>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Title</th><th>Company</th>{% if has_email %}<th>Email</th>{% endif %}</tr></thead>
+              <tbody>
+                {% for r in rows %}
+                <tr>
+                  <td>{{ r.name }}</td>
+                  <td>{{ r.title }}</td>
+                  <td>{{ r.company }}</td>
+                  {% if has_email %}<td class="{{ '' if r.email else 'muted' }}">{{ r.email or 'not found' }}</td>{% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if not has_email %}<p class="hint">Last names may be partly hidden until you reveal emails, since that's what spends credits.</p>{% endif %}
+        {% else %}
+          <div class="empty">Nobody matched all of those filters. Try a broader title, or drop the location or company size.</div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="panel soft">
+      <div class="inner">
+        <span class="eyebrow">Other ways to start</span>
+        <h2 style="text-align:center; margin-bottom: 32px">Not sure who to target yet?</h2>
+        <div class="cards">
+          <a class="card" href="/">
+            <h3>Build from my website</h3>
+            <p>Paste your company URL. We write your ideal customer profile and a cold email sequence, then find matching leads.</p>
+            <span class="go">Get started</span>
+          </a>
+          <a class="card" href="https://github.com/YAlegend/b2b-lead-generation-using-icp" target="_blank" rel="noopener">
+            <h3>Run it yourself</h3>
+            <p>Open source. Run the full pipeline, including sending from your own Gmail, on your machine.</p>
+            <span class="go">View on GitHub</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script nonce="{{ request.state.csp_nonce }}">
+    var form = document.getElementById('find-form');
+    var query = document.getElementById('query');
+    var btn = document.getElementById('search-btn');
+    var settings = document.getElementById('settings');
+    var leadProvider = document.getElementById('lead_provider');
+    var leadKey = document.getElementById('lead_key');
+    var apiKey = document.getElementById('api_key');
+    var remember = document.getElementById('remember');
+    var keyStatus = document.getElementById('key-status');
+    var keyHint = document.getElementById('key-hint');
+
+    var HINTS = {
+      apollo: 'Apollo → Settings → Integrations → API. <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener">Open</a>',
+      rocketreach: 'RocketReach → Account → API. <a href="https://rocketreach.co/api" target="_blank" rel="noopener">Open</a>'
+    };
+
+    function store(get, k, v) {
+      try { return get ? localStorage.getItem(k) : (v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v)); }
+      catch (e) { return null; }
+    }
+
+    function showKeyStatus() {
+      var set = !!leadKey.value;
+      keyStatus.textContent = set ? leadProvider.options[leadProvider.selectedIndex].text + ' key set' : 'Add your API key';
+      keyStatus.classList.toggle('ok', set);
+    }
+
+    function loadKey() {
+      leadKey.value = store(true, 'leadKey:' + leadProvider.value) || '';
+      keyHint.innerHTML = HINTS[leadProvider.value];
+      showKeyStatus();
+    }
+
+    remember.checked = store(true, 'rememberKeys') === '1';
+    if (remember.checked) apiKey.value = store(true, 'aiKey') || '';
+    loadKey();
+    if (!leadKey.value) settings.open = true;
+
+    leadProvider.addEventListener('change', loadKey);
+    leadKey.addEventListener('input', showKeyStatus);
+
+    remember.addEventListener('change', function () {
+      if (!remember.checked) {
+        store(false, 'rememberKeys'); store(false, 'aiKey');
+        ['apollo', 'rocketreach'].forEach(function (p) { store(false, 'leadKey:' + p); });
+      }
+    });
+
+    document.querySelectorAll('.example').forEach(function (b) {
+      b.addEventListener('click', function () { query.value = b.textContent; query.focus(); });
+    });
+
+    query.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+    });
+
+    form.addEventListener('submit', function (e) {
+      if (!leadKey.value.trim()) {
+        e.preventDefault(); settings.open = true; leadKey.focus();
+        keyStatus.textContent = 'Add your API key first';
+        return;
+      }
+      if (remember.checked) {
+        store(false, 'rememberKeys', '1');
+        store(false, 'leadKey:' + leadProvider.value, leadKey.value.trim());
+        store(false, 'aiKey', apiKey.value.trim() || null);
+      }
+      btn.setAttribute('aria-busy', 'true');
+      btn.disabled = true;
+    });
+
+    var csvBtn = document.getElementById('download-csv');
+    if (csvBtn) csvBtn.addEventListener('click', downloadCsv);
+
+    function downloadCsv() {
+      var blob = new Blob([document.getElementById('csv').textContent], { type: 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'leads.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+  </script>
+</body>
+</html>

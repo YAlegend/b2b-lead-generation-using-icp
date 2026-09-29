@@ -54,9 +54,31 @@ specific geography, at most 2, otherwise use an empty list. Keep every
 string short. Total response under 500 characters."""
 
 
-def _extract_criteria(target_md: str, llm_provider: str, llm_api_key: str) -> dict:
+QUERY_SYSTEM = """You turn a plain-English description of the people someone
+wants to find (e.g. "VPs of Engineering at SaaS companies in Boston") into
+structured lead-search criteria. Output ONLY a JSON object, no markdown
+fences, no explanation, matching exactly this shape:
+
+{
+  "job_titles": ["..."],
+  "industries_or_keywords": ["..."],
+  "company_size_ranges": ["1-10", "11-50", "51-200", "201-500", "501-1000", "1001-5000", "5001-10000", "10001+"],
+  "locations": ["..."]
+}
+
+Only fill a field from what the request actually says — use an empty list
+for anything it doesn't mention (don't guess a company size or location).
+At most 4 job titles, each a short plain title, and include close variants
+of the one asked for (e.g. "Head of Marketing" also "VP Marketing"). At
+most 3 industry or keyword terms, 1-2 words each. Company sizes only from
+the fixed list above. At most 2 locations. Total response under 500
+characters."""
+
+
+def _extract_criteria(target_md: str, llm_provider: str, llm_api_key: str,
+                      system: str = CRITERIA_SYSTEM) -> dict:
     try:
-        raw = call_llm(llm_provider, llm_api_key, target_md, CRITERIA_SYSTEM, max_tokens=600)
+        raw = call_llm(llm_provider, llm_api_key, target_md, system, max_tokens=600)
     except LLMError as exc:
         raise DiscoveryError(f"Could not analyze target market: {exc}") from exc
 
@@ -213,3 +235,31 @@ def find_leads_rocketreach(target_md: str, api_key: str, llm_provider: str, llm_
     if with_emails:
         _rocketreach_reveal(rows, api_key)
     return _rows_to_csv(rows)
+
+
+# ── Free-text search (the /find page) ────────────────────────────────────
+
+SEARCHERS = {
+    "apollo": (_apollo_search, _apollo_reveal),
+    "rocketreach": (_rocketreach_search, _rocketreach_reveal),
+}
+
+
+def search_people(query: str, provider: str, api_key: str, llm_provider: str,
+                  llm_api_key: str, count: int = 10,
+                  with_emails: bool = False) -> tuple[dict, list[dict], str]:
+    """Search from a plain-English request. Returns (criteria, rows, csv)."""
+    if provider not in SEARCHERS:
+        raise DiscoveryError(f"Unknown lead provider: {provider}")
+    search, reveal = SEARCHERS[provider]
+    criteria = _extract_criteria(query, llm_provider, llm_api_key, QUERY_SYSTEM)
+    if not any(criteria.values()):
+        raise DiscoveryError("Couldn't pick out any job titles, industries, sizes or locations "
+                             "from that search — try naming a role, e.g. \"Heads of Sales at fintech startups\".")
+    try:
+        rows = search(criteria, api_key, count)
+        if rows and with_emails:
+            reveal(rows, api_key)
+    except requests.RequestException as exc:
+        raise DiscoveryError(f"Could not reach {provider}: {exc}") from exc
+    return criteria, rows, _rows_to_csv(rows) if rows else ""

@@ -56,6 +56,24 @@ from bs4 import BeautifulSoup
 
 
 # ── Web fetch ─────────────────────────────────────────────────────────────────
+def extract_text(html: str) -> str:
+    """Readable text from a page, truncated to stay within token limits."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    # Remove scripts and styles
+    for tag in soup(["script", "style", "nav", "footer", "header"]):
+        tag.decompose()
+
+    text = soup.get_text(separator="\n")
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    content = "\n".join(lines)
+
+    # Truncate to ~6000 chars to stay within token limits
+    if len(content) > 6000:
+        content = content[:6000] + "\n[content truncated]"
+    return content
+
+
 def fetch_website(url: str) -> str:
     """Fetch and extract readable text from a URL."""
     print(dim(f"  Fetching {url}..."))
@@ -63,20 +81,7 @@ def fetch_website(url: str) -> str:
         headers = {"User-Agent": "Mozilla/5.0 (compatible; OutreachBot/1.0)"}
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # Remove scripts and styles
-        for tag in soup(["script", "style", "nav", "footer", "header"]):
-            tag.decompose()
-
-        text = soup.get_text(separator="\n")
-        lines = [l.strip() for l in text.splitlines() if l.strip()]
-        content = "\n".join(lines)
-
-        # Truncate to ~6000 chars to stay within token limits
-        if len(content) > 6000:
-            content = content[:6000] + "\n[content truncated]"
-
+        content = extract_text(resp.text)
         print(green(f"  ✓ Fetched {len(content)} characters from website"))
         return content
 

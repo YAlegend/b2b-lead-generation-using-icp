@@ -9,25 +9,54 @@ no terminal required.
 import csv
 import io
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from run import fetch_website, PRODUCT_SYSTEM, PRODUCT_PROMPT, TARGET_SYSTEM, TARGET_PROMPT  # noqa: E402
+from run import PRODUCT_SYSTEM, PRODUCT_PROMPT, TARGET_SYSTEM, TARGET_PROMPT  # noqa: E402
 
 from llm import call_llm, PROVIDERS, LLMError  # noqa: E402
 from leads import find_leads, LeadsError  # noqa: E402
-from discovery import find_leads_apollo, find_leads_rocketreach, DiscoveryError  # noqa: E402
+from discovery import find_leads_apollo, find_leads_rocketreach, search_people, DiscoveryError  # noqa: E402
+from security import (  # noqa: E402
+    HONEYPOT_FIELD, client_ip, fetch_public_website, redact,
+    search_limiter, security_headers, server_key_limiter,
+)
 
-app = FastAPI(title="B2B Outreach Framework")
+# No /docs, /redoc or /openapi.json: nothing for crawlers to enumerate.
+app = FastAPI(title="B2B Outreach Framework", docs_url=None, redoc_url=None, openapi_url=None)
+app.middleware("http")(security_headers)
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+MAX_QUERY_CHARS = 500
+MAX_DESCRIPTION_CHARS = 2000
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots():
+    return "User-agent: *\nDisallow: /\n"
+
+
+def _abuse_check(request: Request, honeypot: str, provider: str, api_key: str) -> str:
+    """Return an error message if this submission should be refused, else ''."""
+    if honeypot:
+        return "Something went wrong. Please try again."
+    if not search_limiter.allow(client_ip(request)):
+        return "Too many searches from your connection. Please wait a few minutes and try again."
+    if provider == "groq" and not api_key and not server_key_limiter.allow("server"):
+        return ("The free shared AI key is busy right now. Add your own AI key under "
+                "settings, or try again later.")
+    return ""
 
 EMAIL_SYSTEM = """You are a B2B sales copywriter writing a cold email sequence
 for use in an AI-powered lead generation tool called OpenOutreach.
@@ -81,9 +110,10 @@ Output as markdown with this structure:
 
 def _slug_from(url: str, description: str) -> str:
     if url:
-        domain = urlparse(url).netloc.replace("www.", "")
-        if domain:
-            return domain.split(".")[0].lower()
+        domain = (urlparse(url).hostname or "").replace("www.", "")
+        slug = re.sub(r"[^a-z0-9-]", "", domain.split(".")[0].lower())
+        if slug:
+            return slug
     return "my-company"
 
 
@@ -122,6 +152,51 @@ def index(request: Request):
     )
 
 
+@app.get("/find", response_class=HTMLResponse)
+def find_page(request: Request):
+    return templates.TemplateResponse(
+        "find.html", {"request": request, "providers": PROVIDERS, "form": {}}
+    )
+
+
+@app.post("/find", response_class=HTMLResponse)
+def find(
+    request: Request,
+    query: str = Form(""),
+    lead_provider: str = Form("apollo"),
+    lead_key: str = Form(""),
+    provider: str = Form("groq"),
+    api_key: str = Form(""),
+    lead_count: int = Form(10),
+    with_emails: bool = Form(False),
+    company_fax: str = Form(""),  # honeypot, see security.HONEYPOT_FIELD
+):
+    lead_key, api_key = lead_key.strip(), api_key.strip()
+    form = {
+        "query": query.strip()[:MAX_QUERY_CHARS], "lead_provider": lead_provider, "provider": provider,
+        "lead_count": lead_count, "with_emails": with_emails,
+    }
+    ctx = {"request": request, "providers": PROVIDERS, "form": form}
+
+    if not form["query"]:
+        ctx["error"] = "Describe who you want to find."
+    elif not lead_key:
+        ctx["error"] = "Add your Apollo or RocketReach API key under Search settings."
+    elif refused := _abuse_check(request, company_fax, provider, api_key):
+        ctx["error"] = refused
+    else:
+        try:
+            criteria, rows, csv_text = search_people(
+                form["query"], lead_provider, lead_key, provider, api_key,
+                count=max(1, min(lead_count, 100)), with_emails=with_emails,
+            )
+            ctx.update(searched=True, criteria=criteria, rows=rows, csv_text=csv_text)
+        except DiscoveryError as exc:
+            ctx["error"] = redact(str(exc), lead_key, api_key)
+
+    return templates.TemplateResponse("find.html", ctx)
+
+
 @app.post("/generate", response_class=HTMLResponse)
 def generate(
     request: Request,
@@ -135,41 +210,40 @@ def generate(
     rocketreach_key: str = Form(""),
     lead_count: int = Form(10),
     with_emails: bool = Form(False),
+    company_fax: str = Form(""),  # honeypot, see security.HONEYPOT_FIELD
 ):
     url = url.strip()
-    description = description.strip()
+    description = description.strip()[:MAX_DESCRIPTION_CHARS]
     api_key = api_key.strip()
     bettercontact_key = bettercontact_key.strip()
     apollo_key = apollo_key.strip()
     rocketreach_key = rocketreach_key.strip()
+    lead_count = max(1, min(lead_count, 200))
+    all_keys = (api_key, bettercontact_key, apollo_key, rocketreach_key)
 
-    if not url and not description:
+    def form_error(message: str):
         return templates.TemplateResponse(
             "index.html",
-            {
-                "request": request,
-                "providers": PROVIDERS,
-                "error": "Enter a company URL or a description.",
-            },
+            {"request": request, "providers": PROVIDERS, "error": redact(message, *all_keys)},
         )
+
+    if not url and not description:
+        return form_error("Enter a company URL or a description.")
+    if refused := _abuse_check(request, company_fax, provider, api_key):
+        return form_error(refused)
 
     website_content = ""
     fetch_error = ""
     if url:
         try:
-            website_content = fetch_website(url)
-        except Exception as exc:
-            fetch_error = f"Could not read {url}: {exc}"
+            website_content = fetch_public_website(url)
+        except ValueError as exc:
+            fetch_error = str(exc)
+        except Exception:
+            fetch_error = f"Could not read {url}."
 
     if not website_content and not description:
-        return templates.TemplateResponse(
-            "index.html",
-            {
-                "request": request,
-                "providers": PROVIDERS,
-                "error": fetch_error or "Could not read that website — add a description instead.",
-            },
-        )
+        return form_error(fetch_error or "Could not read that website — add a description instead.")
 
     try:
         product_md = call_llm(
@@ -188,10 +262,7 @@ def generate(
             EMAIL_SYSTEM,
         )
     except LLMError as exc:
-        return templates.TemplateResponse(
-            "index.html",
-            {"request": request, "providers": PROVIDERS, "error": str(exc)},
-        )
+        return form_error(str(exc))
 
     leads_output = ""
     leads_error = ""
@@ -219,9 +290,10 @@ def generate(
                 f"You picked \"{discovery_provider}\" as the lead-finding provider "
                 "but didn't give it a key."
             )
+        leads_output = redact(leads_output, *all_keys)
         leads_header, leads_rows = _parse_leads_csv(leads_output)
     except (LeadsError, DiscoveryError) as exc:
-        leads_error = str(exc)
+        leads_error = redact(str(exc), *all_keys)
 
     slug = _slug_from(url, description)
 

@@ -1,155 +1,118 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% include "_head.html" %}
   <title>Your Outreach System — {{ slug }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --primary: #0F172A;
-      --secondary: #334155;
-      --cta: #0369A1;
-      --cta-hover: #075985;
-      --bg: #F8FAFC;
-      --surface: #FFFFFF;
-      --text: #020617;
-      --muted: #475569;
-      --border: #E2E8F0;
-      --error-bg: #FEF2F2;
-      --error-border: #FECACA;
-      --error-text: #B91C1C;
-      color-scheme: light;
-    }
-    * { box-sizing: border-box; }
-    body {
-      font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 760px; margin: 0 auto; padding: 40px 20px;
-      background: var(--bg); color: var(--text); line-height: 1.5;
-    }
-    h1 { font-size: 1.4rem; font-weight: 700; color: var(--primary); margin-bottom: 24px; }
-    h1 code { background: var(--border); padding: 2px 6px; border-radius: 4px; font-size: .95em; }
-    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    h1 code { font-family: inherit; background: var(--accent); padding: 0 .18em; border-radius: 8px; }
+    .tabs { display: inline-flex; gap: 4px; padding: 5px; background: var(--panel-soft); border-radius: 12px; margin-bottom: 18px; flex-wrap: wrap; }
     .tab {
-      padding: 10px 16px; cursor: pointer; font-size: .9rem; font-weight: 600; font-family: inherit;
-      color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent;
-      transition: color 150ms ease, border-color 150ms ease;
+      padding: 10px 18px; min-height: 42px; cursor: pointer; border: none; border-radius: 9px; background: none;
+      font: 600 .75rem/1 "Inter", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+      transition: background-color 150ms ease, color 150ms ease;
     }
-    .tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--cta); }
-    .tab:hover { color: var(--primary); }
-    .tab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); border-radius: 4px; }
-    .panel[hidden] { display: none; }
+    .tab:hover { color: var(--ink); }
+    .tab[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .tab:focus-visible { outline: none; box-shadow: var(--focus); }
+    .doc[hidden] { display: none; }
     pre {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-      padding: 16px; white-space: pre-wrap; word-wrap: break-word;
-      font-size: .85rem; line-height: 1.6; max-height: 60vh; overflow-y: auto;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: var(--panel-soft); border-radius: 14px; padding: 24px; margin: 0;
+      white-space: pre-wrap; word-wrap: break-word; font-size: .86rem; line-height: 1.7;
+      max-height: 60vh; overflow-y: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
-    .actions { margin: 10px 0 28px; display: flex; gap: 10px; flex-wrap: wrap; }
-    button, a.btn {
-      padding: 8px 14px; min-height: 44px; font-size: .85rem; font-weight: 600; font-family: inherit;
-      border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
-      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
-      transition: background-color 150ms ease, border-color 150ms ease;
-    }
-    button:hover, a.btn:hover { background: var(--bg); border-color: var(--cta); }
-    button:focus-visible, a.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(3, 105, 161, .25); }
-    button.primary { background: var(--cta); border-color: var(--cta); color: white; }
-    button.primary:hover { background: var(--cta-hover); border-color: var(--cta-hover); }
-    button[data-copied="true"] { border-color: #16A34A; color: #16A34A; }
-    section { margin-bottom: 32px; }
-    section h2 { font-size: 1rem; font-weight: 700; color: var(--primary); }
-    .warn {
-      background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
-      padding: 12px 14px; border-radius: 8px; font-size: .88rem;
-    }
-    .empty { color: var(--muted); font-size: .9rem; }
-    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-    th, td {
-      text-align: left; padding: 10px 12px; white-space: nowrap;
-      border-bottom: 1px solid var(--border);
-    }
-    th { background: var(--bg); color: var(--primary); font-weight: 700; }
-    tbody tr:last-child td { border-bottom: none; }
-    tbody tr:hover td { background: var(--bg); }
-    footer { margin-top: 20px; text-align: center; }
-    footer a { color: var(--cta); }
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    .actions { margin: 16px 0 0; display: flex; gap: 10px; flex-wrap: wrap; }
+    .leads-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+    .leads-head h2 { margin: 0; }
+    .empty { background: var(--panel-soft); border-radius: 14px; padding: 28px; text-align: center; color: var(--muted); }
+    .foot { text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   </style>
 </head>
 <body>
-  <h1>Your outreach system for <code>{{ slug }}</code></h1>
+{% set active = 'build' %}{% include "_nav.html" %}
 
-  <div class="tabs" role="tablist" aria-label="Generated files">
-    <button class="tab" role="tab" id="tab-product" aria-controls="panel-product" aria-selected="true" data-tab="product">Product</button>
-    <button class="tab" role="tab" id="tab-target" aria-controls="panel-target" aria-selected="false" tabindex="-1" data-tab="target">ICP</button>
-    <button class="tab" role="tab" id="tab-email" aria-controls="panel-email" aria-selected="false" tabindex="-1" data-tab="email">Email Sequence</button>
-  </div>
+  <main>
+    <section class="panel">
+      <div class="inner">
+        <span class="eyebrow">Your outreach system</span>
+        <h1>Ready for <code>{{ slug }}</code></h1>
+        <p class="lede">Review, download or copy each file. Check the emails before sending — anything in [brackets] is for you to fill in.</p>
 
-  <div class="panel" id="panel-product" role="tabpanel" aria-labelledby="tab-product" tabindex="0">
-    <pre id="content-product">{{ product_md }}</pre>
-    <div class="actions">
-      <button class="primary" onclick="download('product', '{{ slug }}-product.md')">Download product.md</button>
-      <button onclick="copyPanel('product', this)">Copy</button>
-    </div>
-  </div>
+        <div class="tabs" role="tablist" aria-label="Generated files">
+          <button class="tab" role="tab" id="tab-product" aria-controls="panel-product" aria-selected="true" data-tab="product">Product</button>
+          <button class="tab" role="tab" id="tab-target" aria-controls="panel-target" aria-selected="false" tabindex="-1" data-tab="target">ICP</button>
+          <button class="tab" role="tab" id="tab-email" aria-controls="panel-email" aria-selected="false" tabindex="-1" data-tab="email">Email sequence</button>
+        </div>
 
-  <div class="panel" id="panel-target" role="tabpanel" aria-labelledby="tab-target" tabindex="0" hidden>
-    <pre id="content-target">{{ target_md }}</pre>
-    <div class="actions">
-      <button class="primary" onclick="download('target', '{{ slug }}-target.md')">Download target.md</button>
-      <button onclick="copyPanel('target', this)">Copy</button>
-    </div>
-  </div>
+        <div class="doc" id="panel-product" role="tabpanel" aria-labelledby="tab-product" tabindex="0">
+          <pre id="content-product">{{ product_md }}</pre>
+          <div class="actions">
+            <button class="btn small" data-download="product" data-filename="{{ slug }}-product.md">Download product.md</button>
+            <button class="btn small secondary" data-copy="product">Copy</button>
+          </div>
+        </div>
 
-  <div class="panel" id="panel-email" role="tabpanel" aria-labelledby="tab-email" tabindex="0" hidden>
-    <pre id="content-email">{{ email_md }}</pre>
-    <div class="actions">
-      <button class="primary" onclick="download('email', '{{ slug }}-email-sequence.md')">Download email-sequence.md</button>
-      <button onclick="copyPanel('email', this)">Copy</button>
-    </div>
-  </div>
+        <div class="doc" id="panel-target" role="tabpanel" aria-labelledby="tab-target" tabindex="0" hidden>
+          <pre id="content-target">{{ target_md }}</pre>
+          <div class="actions">
+            <button class="btn small" data-download="target" data-filename="{{ slug }}-target.md">Download target.md</button>
+            <button class="btn small secondary" data-copy="target">Copy</button>
+          </div>
+        </div>
 
-  <section>
-    <h2>Leads</h2>
-    {% if leads_rows %}
-      <pre id="content-leads" hidden>{{ leads_output }}</pre>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>{% for col in leads_header %}<th>{{ col }}</th>{% endfor %}</tr>
-          </thead>
-          <tbody>
-            {% for row in leads_rows %}
-            <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="doc" id="panel-email" role="tabpanel" aria-labelledby="tab-email" tabindex="0" hidden>
+          <pre id="content-email">{{ email_md }}</pre>
+          <div class="actions">
+            <button class="btn small" data-download="email" data-filename="{{ slug }}-email-sequence.md">Download email-sequence.md</button>
+            <button class="btn small secondary" data-copy="email">Copy</button>
+          </div>
+        </div>
       </div>
-      <div class="actions">
-        <button class="primary" onclick="download('leads', '{{ slug }}-leads.csv')">Download leads.csv</button>
-        <button onclick="copyPanel('leads', this)">Copy</button>
-      </div>
-    {% elif leads_output %}
-      <pre id="content-leads">{{ leads_output }}</pre>
-      <div class="actions">
-        <button class="primary" onclick="download('leads', '{{ slug }}-leads.csv')">Download leads.csv</button>
-      </div>
-    {% elif leads_error %}
-      <p class="warn" role="alert">{{ leads_error }}</p>
-    {% else %}
-      <p class="empty">No provider key was given, so lead search was skipped.</p>
-    {% endif %}
-  </section>
+    </section>
 
-  <footer>
-    <a href="/">&larr; Start another</a>
-  </footer>
+    <section class="panel">
+      <div class="inner">
+        <div class="leads-head">
+          <h2>Leads</h2>
+          {% if leads_rows or leads_output %}
+          <div class="actions" style="margin:0">
+            <button class="btn small" data-download="leads" data-filename="{{ slug }}-leads.csv">Download leads.csv</button>
+            {% if leads_rows %}<button class="btn small secondary" data-copy="leads">Copy</button>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% if leads_rows %}
+          <pre id="content-leads" hidden>{{ leads_output }}</pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>{% for col in leads_header %}<th>{{ col }}</th>{% endfor %}</tr>
+              </thead>
+              <tbody>
+                {% for row in leads_rows %}
+                <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% elif leads_output %}
+          <pre id="content-leads">{{ leads_output }}</pre>
+        {% elif leads_error %}
+          <p class="error" role="alert">{{ leads_error }}</p>
+        {% else %}
+          <p class="empty">No provider key was given, so lead search was skipped.</p>
+        {% endif %}
+      </div>
+    </section>
 
-  <script>
+    <section class="panel soft">
+      <div class="foot">
+        <a class="btn secondary" href="/">Start another</a>
+        <a class="btn" href="/find">Search for more people</a>
+      </div>
+    </section>
+  </main>
+
+  <script nonce="{{ request.state.csp_nonce }}">
     var tabs = Array.from(document.querySelectorAll('.tab'));
 
     function activate(tab) {
@@ -172,6 +135,13 @@
         else if (e.key === 'End') next = tabs[tabs.length - 1];
         if (next) { e.preventDefault(); activate(next); }
       });
+    });
+
+    document.querySelectorAll('[data-download]').forEach(function (b) {
+      b.addEventListener('click', function () { download(b.dataset.download, b.dataset.filename); });
+    });
+    document.querySelectorAll('[data-copy]').forEach(function (b) {
+      b.addEventListener('click', function () { copyPanel(b.dataset.copy, b); });
     });
 
     function download(key, filename) {
