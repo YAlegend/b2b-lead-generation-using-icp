@@ -14,6 +14,10 @@ directly. Verified against each provider's own API docs (Sept 2026):
                  POST /api/v1/people/bulk_match       (reveal, costs credits)
   - RocketReach: POST /api/v2/person/search           (search)
                  GET  /api/v2/person/lookup            (reveal, costs credits)
+  - People Data Labs: POST /v5/person/search           (search, 100 free/month)
+
+search_people() (the /find page) can then fill in and check emails for
+free via emails.py (Hunter + QuickEmailVerification).
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ import re
 
 import requests
 
+from emails import hunter_find_emails, verify_emails
 from llm import call_llm, LLMError
 
 
@@ -96,16 +101,14 @@ def _extract_criteria(target_md: str, llm_provider: str, llm_api_key: str,
 
 
 def _rows_to_csv(rows: list[dict]) -> str:
+    fields = ["name", "title", "company", "email"]
+    if any(r.get("email_status") for r in rows):
+        fields.append("email_status")
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=["name", "title", "company", "email"])
+    writer = csv.DictWriter(out, fieldnames=fields, extrasaction="ignore")
     writer.writeheader()
     for row in rows:
-        writer.writerow({
-            "name": row.get("name", ""),
-            "title": row.get("title", ""),
-            "company": row.get("company", ""),
-            "email": row.get("email", ""),
-        })
+        writer.writerow({f: row.get(f, "") for f in fields})
     return out.getvalue().strip()
 
 
@@ -142,6 +145,7 @@ def _apollo_search(criteria: dict, api_key: str, count: int) -> list[dict]:
         "name": f"{p.get('first_name', '')} {p.get('last_name_obfuscated', '')}".strip(),
         "title": p.get("title") or "",
         "company": (p.get("organization") or {}).get("name", ""),
+        "domain": (p.get("organization") or {}).get("primary_domain") or "",
         "email": "",
     } for p in people]
 
@@ -206,6 +210,7 @@ def _rocketreach_search(criteria: dict, api_key: str, count: int) -> list[dict]:
         "name": p.get("name", ""),
         "title": p.get("current_title") or "",
         "company": p.get("current_employer") or "",
+        "domain": p.get("current_employer_domain") or "",
         "email": "",
     } for p in people]
 
@@ -237,18 +242,74 @@ def find_leads_rocketreach(target_md: str, api_key: str, llm_provider: str, llm_
     return _rows_to_csv(rows)
 
 
+# ── People Data Labs ─────────────────────────────────────────────────────
+# POST /v5/person/search takes an Elasticsearch query; 1 credit per record
+# returned (free plan: 100/month). No matches comes back as a 404, not an
+# empty list. Free plans return contact fields as true/false flags, so
+# emails only appear on paid plans — there's no separate reveal call.
+
+def _pdl_search(criteria: dict, api_key: str, count: int) -> list[dict]:
+    must = []
+    if criteria["job_titles"]:
+        must.append({"bool": {"should": [{"match_phrase": {"job_title": t.lower()}}
+                                         for t in criteria["job_titles"]]}})
+    if criteria["company_size_ranges"]:
+        must.append({"terms": {"job_company_size": criteria["company_size_ranges"]}})
+    if criteria["locations"]:
+        must.append({"bool": {"should": [{"match": {"location_name": {"query": loc.lower(), "operator": "and"}}}
+                                         for loc in criteria["locations"]]}})
+    # Industry wording from the LLM ("fintech") rarely matches PDL's fixed
+    # industry names ("financial services"), so it ranks results rather
+    # than filtering them out.
+    should = [{"match": {"job_company_industry": k.lower()}} for k in criteria["industries_or_keywords"]]
+
+    resp = requests.post(
+        "https://api.peopledatalabs.com/v5/person/search",
+        headers={"X-Api-Key": api_key, "Content-Type": "application/json"},
+        json={"query": {"bool": {"must": must, "should": should}},
+              "size": min(max(count, 1), 100), "titlecase": True},
+        timeout=60,
+    )
+    if resp.status_code == 404:
+        return []
+    if resp.status_code == 402:
+        raise DiscoveryError("People Data Labs: you've used this month's free credits (100/month).")
+    if resp.status_code >= 400:
+        raise DiscoveryError(f"People Data Labs search returned {resp.status_code}: {resp.text[:300]}")
+
+    return [{
+        "id": p.get("id", ""),
+        "name": p.get("full_name") or "",
+        "title": p.get("job_title") or "",
+        "company": p.get("job_company_name") or "",
+        "domain": p.get("job_company_website") or "",
+        "email": p["work_email"] if isinstance(p.get("work_email"), str) else "",
+    } for p in resp.json().get("data", [])[:count]]
+
+
+def _pdl_reveal(rows: list[dict], api_key: str) -> None:
+    """Nothing to do: emails already come back in search results on paid plans."""
+
+
 # ── Free-text search (the /find page) ────────────────────────────────────
 
 SEARCHERS = {
     "apollo": (_apollo_search, _apollo_reveal),
     "rocketreach": (_rocketreach_search, _rocketreach_reveal),
+    "pdl": (_pdl_search, _pdl_reveal),
 }
 
 
 def search_people(query: str, provider: str, api_key: str, llm_provider: str,
-                  llm_api_key: str, count: int = 10,
-                  with_emails: bool = False) -> tuple[dict, list[dict], str]:
-    """Search from a plain-English request. Returns (criteria, rows, csv)."""
+                  llm_api_key: str, count: int = 10, with_emails: bool = False,
+                  hunter_key: str = "", qev_key: str = "") -> tuple[dict, list[dict], str, list[str]]:
+    """Search from a plain-English request. Returns (criteria, rows, csv, notes).
+
+    Optional free extras, run after the provider's own reveal: Hunter finds
+    emails for rows still missing one, then QuickEmailVerification checks
+    every email. Their problems (quota used up, bad key) come back as notes
+    so the people found are still shown.
+    """
     if provider not in SEARCHERS:
         raise DiscoveryError(f"Unknown lead provider: {provider}")
     search, reveal = SEARCHERS[provider]
@@ -262,4 +323,10 @@ def search_people(query: str, provider: str, api_key: str, llm_provider: str,
             reveal(rows, api_key)
     except requests.RequestException as exc:
         raise DiscoveryError(f"Could not reach {provider}: {exc}") from exc
-    return criteria, rows, _rows_to_csv(rows) if rows else ""
+
+    notes: list[str] = []
+    if rows and hunter_key:
+        notes += hunter_find_emails(rows, hunter_key)
+    if rows and qev_key:
+        notes += verify_emails(rows, qev_key)
+    return criteria, rows, _rows_to_csv(rows) if rows else "", notes

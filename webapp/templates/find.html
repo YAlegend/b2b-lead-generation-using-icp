@@ -50,6 +50,14 @@
     .results-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
     .results-head h2 { margin: 0; }
     .count { font-family: var(--heading); font-size: 3rem; line-height: 1; letter-spacing: -.04em; margin-right: 10px; }
+    .settings-sub { grid-column: 1 / -1; margin: 26px 0 0; padding-top: 22px; border-top: 1px solid var(--line-2);
+      font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+    .status { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
+    .status.valid { background: var(--green); color: #3B5B0B; }
+    .status.risky, .status.unknown { background: var(--accent-soft); color: #5C5A00; }
+    .status.invalid { background: var(--error-bg); color: var(--error-ink); }
+    .notes { background: var(--accent-soft); border-radius: 10px; padding: 12px 16px; font-size: .88rem; margin: 0 0 18px; }
+    .notes p { margin: 0; }
     .empty { background: var(--panel-soft); border-radius: 14px; padding: 36px; text-align: center; color: var(--muted); }
 
     @media (max-width: 720px) {
@@ -67,7 +75,7 @@
       <div class="inner">
         <span class="eyebrow">Lead search</span>
         <h1>Help me find people</h1>
-        <p class="lede">Describe who you want to reach in plain English. We turn it into filters and search Apollo or RocketReach for you.</p>
+        <p class="lede">Describe who you want to reach in plain English. We turn it into filters and search Apollo, RocketReach or People Data Labs for you.</p>
 
         {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
 
@@ -96,6 +104,7 @@
                 <select id="lead_provider" name="lead_provider">
                   <option value="apollo"{% if form.lead_provider == 'apollo' %} selected{% endif %}>Apollo</option>
                   <option value="rocketreach"{% if form.lead_provider == 'rocketreach' %} selected{% endif %}>RocketReach</option>
+                  <option value="pdl"{% if form.lead_provider == 'pdl' %} selected{% endif %}>People Data Labs (free, 100/month)</option>
                 </select>
               </div>
               <div>
@@ -119,10 +128,21 @@
                 <label class="field" for="lead_count">How many people</label>
                 <input type="number" id="lead_count" name="lead_count" value="{{ form.lead_count or 10 }}" min="1" max="100" inputmode="numeric">
               </div>
+              <div class="settings-sub">Free email finding &amp; checking <span class="optional">— optional</span></div>
+              <div>
+                <label class="field" for="hunter_key">Hunter key <span class="optional">(finds emails)</span></label>
+                <input type="password" id="hunter_key" name="hunter_key" autocomplete="off" placeholder="Optional">
+                <div class="hint">Free ~25–50 finds/month, only charged when an email is found. <a href="https://hunter.io/users/sign_up" target="_blank" rel="noopener">Get a key</a></div>
+              </div>
+              <div>
+                <label class="field" for="qev_key">QuickEmailVerification key <span class="optional">(checks emails)</span></label>
+                <input type="password" id="qev_key" name="qev_key" autocomplete="off" placeholder="Optional">
+                <div class="hint">Free 100 checks/day, so bad addresses don't bounce. <a href="https://quickemailverification.com/register" target="_blank" rel="noopener">Get a key</a></div>
+              </div>
               <div class="full">
                 <label class="checkbox-row">
                   <input type="checkbox" name="with_emails" value="true"{% if form.with_emails %} checked{% endif %}>
-                  <span>Reveal verified emails <span class="optional">— uses 1 credit per person from your plan. Leave off to preview names, titles and companies.</span></span>
+                  <span>Reveal emails from the lead database <span class="optional">— uses 1 of its credits per person. Not needed if you use Hunter above.</span></span>
                 </label>
                 <label class="checkbox-row">
                   <input type="checkbox" id="remember">
@@ -148,6 +168,8 @@
 
         {% if rows %}
           {% set has_email = rows | selectattr('email') | list | length > 0 %}
+          {% set has_status = rows | selectattr('email_status') | list | length > 0 %}
+          {% if notes %}<div class="notes" role="status">{% for n in notes %}<p>{{ n }}</p>{% endfor %}</div>{% endif %}
           <div class="results-head">
             <h2><span class="count">{{ rows | length }}</span>{{ 'person' if rows | length == 1 else 'people' }} found</h2>
             <button type="button" class="btn small" id="download-csv">Download CSV</button>
@@ -155,7 +177,7 @@
           <pre id="csv" hidden>{{ csv_text }}</pre>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Title</th><th>Company</th>{% if has_email %}<th>Email</th>{% endif %}</tr></thead>
+              <thead><tr><th>Name</th><th>Title</th><th>Company</th>{% if has_email %}<th>Email</th>{% endif %}{% if has_status %}<th>Check</th>{% endif %}</tr></thead>
               <tbody>
                 {% for r in rows %}
                 <tr>
@@ -163,12 +185,13 @@
                   <td>{{ r.title }}</td>
                   <td>{{ r.company }}</td>
                   {% if has_email %}<td class="{{ '' if r.email else 'muted' }}">{{ r.email or 'not found' }}</td>{% endif %}
+                  {% if has_status %}<td>{% if r.email_status %}<span class="status {{ r.email_status }}">{{ r.email_status }}</span>{% endif %}</td>{% endif %}
                 </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
-          {% if not has_email %}<p class="hint">Last names may be partly hidden until you reveal emails, since that's what spends credits.</p>{% endif %}
+          {% if not has_email %}<p class="hint">No emails yet. Reveal them with your lead database's credits, or add a free Hunter key under Search settings.</p>{% endif %}
         {% else %}
           <div class="empty">Nobody matched all of those filters. Try a broader title, or drop the location or company size.</div>
         {% endif %}
@@ -210,7 +233,8 @@
 
     var HINTS = {
       apollo: 'Apollo → Settings → Integrations → API. <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener">Open</a>',
-      rocketreach: 'RocketReach → Account → API. <a href="https://rocketreach.co/api" target="_blank" rel="noopener">Open</a>'
+      rocketreach: 'RocketReach → Account → API. <a href="https://rocketreach.co/api" target="_blank" rel="noopener">Open</a>',
+      pdl: 'Free key, no card: 100 people/month. Emails show on paid plans only. <a href="https://dashboard.peopledatalabs.com/signup" target="_blank" rel="noopener">Get a key</a>'
     };
 
     function store(get, k, v) {
@@ -230,8 +254,14 @@
       showKeyStatus();
     }
 
+    var hunterKey = document.getElementById('hunter_key');
+    var qevKey = document.getElementById('qev_key');
     remember.checked = store(true, 'rememberKeys') === '1';
-    if (remember.checked) apiKey.value = store(true, 'aiKey') || '';
+    if (remember.checked) {
+      apiKey.value = store(true, 'aiKey') || '';
+      hunterKey.value = store(true, 'hunterKey') || '';
+      qevKey.value = store(true, 'qevKey') || '';
+    }
     loadKey();
     if (!leadKey.value) settings.open = true;
 
@@ -240,8 +270,8 @@
 
     remember.addEventListener('change', function () {
       if (!remember.checked) {
-        store(false, 'rememberKeys'); store(false, 'aiKey');
-        ['apollo', 'rocketreach'].forEach(function (p) { store(false, 'leadKey:' + p); });
+        store(false, 'rememberKeys'); store(false, 'aiKey'); store(false, 'hunterKey'); store(false, 'qevKey');
+        ['apollo', 'rocketreach', 'pdl'].forEach(function (p) { store(false, 'leadKey:' + p); });
       }
     });
 
@@ -263,6 +293,8 @@
         store(false, 'rememberKeys', '1');
         store(false, 'leadKey:' + leadProvider.value, leadKey.value.trim());
         store(false, 'aiKey', apiKey.value.trim() || null);
+        store(false, 'hunterKey', hunterKey.value.trim() || null);
+        store(false, 'qevKey', qevKey.value.trim() || null);
       }
       btn.setAttribute('aria-busy', 'true');
       btn.disabled = true;

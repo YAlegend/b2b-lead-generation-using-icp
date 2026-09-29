@@ -169,9 +169,12 @@ def find(
     api_key: str = Form(""),
     lead_count: int = Form(10),
     with_emails: bool = Form(False),
+    hunter_key: str = Form(""),
+    qev_key: str = Form(""),
     company_fax: str = Form(""),  # honeypot, see security.HONEYPOT_FIELD
 ):
     lead_key, api_key = lead_key.strip(), api_key.strip()
+    hunter_key, qev_key = hunter_key.strip(), qev_key.strip()
     form = {
         "query": query.strip()[:MAX_QUERY_CHARS], "lead_provider": lead_provider, "provider": provider,
         "lead_count": lead_count, "with_emails": with_emails,
@@ -181,18 +184,20 @@ def find(
     if not form["query"]:
         ctx["error"] = "Describe who you want to find."
     elif not lead_key:
-        ctx["error"] = "Add your Apollo or RocketReach API key under Search settings."
+        ctx["error"] = "Add your lead database API key under Search settings."
     elif refused := _abuse_check(request, company_fax, provider, api_key):
         ctx["error"] = refused
     else:
         try:
-            criteria, rows, csv_text = search_people(
+            criteria, rows, csv_text, notes = search_people(
                 form["query"], lead_provider, lead_key, provider, api_key,
                 count=max(1, min(lead_count, 100)), with_emails=with_emails,
+                hunter_key=hunter_key, qev_key=qev_key,
             )
-            ctx.update(searched=True, criteria=criteria, rows=rows, csv_text=csv_text)
+            ctx.update(searched=True, criteria=criteria, rows=rows, csv_text=csv_text,
+                       notes=[redact(n, lead_key, api_key, hunter_key, qev_key) for n in notes])
         except DiscoveryError as exc:
-            ctx["error"] = redact(str(exc), lead_key, api_key)
+            ctx["error"] = redact(str(exc), lead_key, api_key, hunter_key, qev_key)
 
     return templates.TemplateResponse("find.html", ctx)
 
