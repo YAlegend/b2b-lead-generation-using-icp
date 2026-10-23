@@ -28,18 +28,9 @@
     .example:hover { border-color: var(--ink); }
     .example:focus-visible { outline: none; box-shadow: var(--focus); }
 
-    details.settings { margin-top: 28px; border: 1px solid var(--line-2); border-radius: 16px; }
-    details.settings summary {
-      cursor: pointer; padding: 18px 22px; list-style: none; display: flex; gap: 12px; align-items: center;
-      font-size: .78rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
-    }
-    details.settings summary::-webkit-details-marker { display: none; }
-    details.settings summary:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 16px; }
     .key-status { margin-left: auto; font-size: .8rem; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); display: flex; align-items: center; gap: 8px; }
     .key-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
     .key-status.ok::before { background: #7CB518; }
-    details.settings summary::after { content: "+"; font-size: 1.2rem; font-weight: 400; color: var(--muted); }
-    details.settings[open] summary::after { content: "–"; }
     .settings-body { padding: 0 22px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
     .settings-body .full { grid-column: 1 / -1; }
     .settings-body label.field { margin-top: 18px; }

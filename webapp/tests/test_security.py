@@ -49,7 +49,7 @@ security.search_limiter.limit = 1000
 # Server-key global cap (unspoofable)
 security.server_key_limiter.hits.clear(); security.server_key_limiter.limit = 2
 with mock.patch.object(main, "search_people", return_value=({"job_titles": []}, [], "", [])):
-    res = ["shared AI key is busy" in c.post("/find", data={**data, "api_key": ""}, headers={"x-forwarded-for": f"9.9.9.{i}"}).text for i in range(3)]
+    res = ["free AI model is busy" in c.post("/find", data={**data, "api_key": ""}, headers={"x-forwarded-for": f"9.9.9.{i}"}).text for i in range(3)]
     check("server-key cap holds even with rotating IPs", res == [False, False, True])
     r = c.post("/find", data=data)
     check("own AI key bypasses server-key cap", "shared AI key is busy" not in r.text and "Nobody matched" in r.text)

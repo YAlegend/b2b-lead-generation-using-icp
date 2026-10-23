@@ -54,8 +54,7 @@ def _abuse_check(request: Request, honeypot: str, provider: str, api_key: str) -
     if not search_limiter.allow(client_ip(request)):
         return "Too many searches from your connection. Please wait a few minutes and try again."
     if provider == "groq" and not api_key and not server_key_limiter.allow("server"):
-        return ("The free shared AI key is busy right now. Add your own AI key under "
-                "settings, or try again later.")
+        return "The free AI model is busy right now. Add your own AI key, or try again later."
     return ""
 
 EMAIL_SYSTEM = """You are a B2B sales copywriter writing a cold email sequence
@@ -267,6 +266,9 @@ def generate(
             EMAIL_SYSTEM,
         )
     except LLMError as exc:
+        if provider == "groq" and not api_key and " 429" in str(exc):
+            return form_error("The free AI model has hit its limit for now. Try again in a few minutes, "
+                              "or open \"Use your own AI key\" and add a free key from console.groq.com.")
         return form_error(str(exc))
 
     leads_output = ""

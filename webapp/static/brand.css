@@ -152,3 +152,14 @@ td.muted { color: var(--faint); }
 }
 
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Collapsible settings panel (used on / and /find) */
+details.settings { margin-top: 28px; border: 1px solid var(--line-2); border-radius: 16px; }
+details.settings summary {
+  cursor: pointer; padding: 18px 22px; list-style: none; display: flex; gap: 12px; align-items: center;
+  font-size: .78rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+}
+details.settings summary::-webkit-details-marker { display: none; }
+details.settings summary:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 16px; }
+details.settings summary::after { content: "+"; font-size: 1.2rem; font-weight: 400; color: var(--muted); }
+details.settings[open] summary::after { content: "–"; }

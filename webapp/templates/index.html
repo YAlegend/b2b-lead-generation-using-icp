@@ -15,6 +15,12 @@
     .row { display: flex; gap: 16px; flex-wrap: wrap; }
     .row > div { flex: 1; min-width: 180px; }
     #submit-btn { margin-top: 36px; }
+    .free-note { margin-top: 28px; padding: 16px 20px; border-radius: 14px; background: var(--panel-soft); font-size: .92rem; }
+    .free-note b { font-weight: 600; }
+    details.settings summary { justify-content: flex-start; }
+    details.settings summary::after { margin-left: auto; }
+    .settings-inner { padding: 0 22px 22px; }
+    .settings-inner > label.field:first-child, .settings-inner > .row:first-child label.field { margin-top: 4px; }
     @media (max-width: 720px) { .steps { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -46,61 +52,74 @@
           <label class="field" for="description">Description <span class="optional">(optional if URL given)</span></label>
           <input type="text" id="description" name="description" autocomplete="off" placeholder="We sell X to Y, minimum $15k projects">
 
-          <div class="row">
-            <div>
-              <label class="field" for="provider">AI provider</label>
-              <select id="provider" name="provider">
-                {% for key, cfg in providers.items() %}
-                <option value="{{ key }}"{% if key == 'groq' %} selected{% endif %}>{{ cfg.label }}</option>
-                {% endfor %}
-              </select>
+          <div class="free-note">
+            <b>No API key needed.</b> Your product profile, ideal customer (ICP) and emails are written by a free AI model (Groq) on this site's own account — no sign-up.
+          </div>
+
+          <details class="settings" id="ai-settings">
+            <summary>Use your own AI key <span class="optional">— optional</span></summary>
+            <div class="settings-inner">
+              <div class="row">
+                <div>
+                  <label class="field" for="provider">AI provider</label>
+                  <select id="provider" name="provider">
+                    {% for key, cfg in providers.items() %}
+                    <option value="{{ key }}"{% if key == 'groq' %} selected{% endif %}>{{ cfg.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="field" for="api_key">API key</label>
+                  <input type="password" id="api_key" name="api_key" autocomplete="off" placeholder="sk-... / AIza... / gsk_...">
+                </div>
+              </div>
+              <div class="hint">Only if the free model is busy, or you prefer Claude, GPT or Gemini. Your key is used for this request only.</div>
             </div>
-            <div>
-              <label class="field" for="api_key">API key <span class="optional">(if required)</span></label>
-              <input type="password" id="api_key" name="api_key" autocomplete="off" placeholder="sk-... / AIza... / gsk_...">
+          </details>
+
+          <details class="settings" id="lead-settings">
+            <summary>Also find leads <span class="optional">— optional, needs a lead-database key</span></summary>
+            <div class="settings-inner">
+            <label class="field" for="discovery_provider">Provider</label>
+            <select id="discovery_provider" name="discovery_provider">
+              <option value="bettercontact" selected>BetterContact (via OpenOutreach)</option>
+              <option value="apollo">Apollo</option>
+              <option value="rocketreach">RocketReach</option>
+            </select>
+            <div class="hint">Pick whichever service you actually have a key for — only that one's key is used.</div>
+
+            <div id="key-bettercontact" class="provider-key">
+              <label class="field" for="bettercontact_key">BetterContact key</label>
+              <input type="password" id="bettercontact_key" name="bettercontact_key" autocomplete="off" placeholder="bc_...">
+              <div class="hint">Free at <a href="https://bettercontact.rocks" target="_blank" rel="noopener">bettercontact.rocks</a>. Runs the full OpenOutreach pipeline.</div>
             </div>
-          </div>
-          <div class="hint">Groq is free with no key needed if the server has one configured.</div>
 
-          <div class="section-label">Lead finding <span class="optional">— optional, skip to generate files only</span></div>
-
-          <label class="field" for="discovery_provider">Provider</label>
-          <select id="discovery_provider" name="discovery_provider">
-            <option value="bettercontact" selected>BetterContact (via OpenOutreach)</option>
-            <option value="apollo">Apollo</option>
-            <option value="rocketreach">RocketReach</option>
-          </select>
-          <div class="hint">Pick whichever service you actually have a key for — only that one's key is used.</div>
-
-          <div id="key-bettercontact" class="provider-key">
-            <label class="field" for="bettercontact_key">BetterContact key</label>
-            <input type="password" id="bettercontact_key" name="bettercontact_key" autocomplete="off" placeholder="bc_...">
-            <div class="hint">Free at <a href="https://bettercontact.rocks" target="_blank" rel="noopener">bettercontact.rocks</a>. Runs the full OpenOutreach pipeline.</div>
-          </div>
-
-          <div id="key-apollo" class="provider-key" hidden>
-            <label class="field" for="apollo_key">Apollo key</label>
-            <input type="password" id="apollo_key" name="apollo_key" autocomplete="off" placeholder="Your Apollo API key">
-            <div class="hint">Get a key at <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener">apollo.io</a>. Searched directly by this app.</div>
-          </div>
-
-          <div id="key-rocketreach" class="provider-key" hidden>
-            <label class="field" for="rocketreach_key">RocketReach key</label>
-            <input type="password" id="rocketreach_key" name="rocketreach_key" autocomplete="off" placeholder="Your RocketReach API key">
-            <div class="hint">Get a key at <a href="https://rocketreach.co/api" target="_blank" rel="noopener">rocketreach.co</a>. Searched directly by this app.</div>
-          </div>
-
-          <div class="row">
-            <div style="max-width: 160px">
-              <label class="field" for="lead_count">Leads</label>
-              <input type="number" id="lead_count" name="lead_count" value="10" min="1" max="200" inputmode="numeric">
+            <div id="key-apollo" class="provider-key" hidden>
+              <label class="field" for="apollo_key">Apollo key</label>
+              <input type="password" id="apollo_key" name="apollo_key" autocomplete="off" placeholder="Your Apollo API key">
+              <div class="hint">Get a key at <a href="https://app.apollo.io/#/settings/integrations/api" target="_blank" rel="noopener">apollo.io</a>. Searched directly by this app.</div>
             </div>
-          </div>
 
-          <label class="checkbox-row">
-            <input type="checkbox" id="with_emails" name="with_emails" value="true">
-            <span>Include verified emails <span class="optional">— spends a credit per lead with your chosen provider. Otherwise leads are name, title and company only, free.</span></span>
-          </label>
+            <div id="key-rocketreach" class="provider-key" hidden>
+              <label class="field" for="rocketreach_key">RocketReach key</label>
+              <input type="password" id="rocketreach_key" name="rocketreach_key" autocomplete="off" placeholder="Your RocketReach API key">
+              <div class="hint">Get a key at <a href="https://rocketreach.co/api" target="_blank" rel="noopener">rocketreach.co</a>. Searched directly by this app.</div>
+            </div>
+
+            <div class="row">
+              <div style="max-width: 160px">
+                <label class="field" for="lead_count">Leads</label>
+                <input type="number" id="lead_count" name="lead_count" value="10" min="1" max="200" inputmode="numeric">
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input type="checkbox" id="with_emails" name="with_emails" value="true">
+              <span>Include verified emails <span class="optional">— spends a credit per lead with your chosen provider. Otherwise leads are name, title and company only, free.</span></span>
+            </label>
+            <div class="hint">No lead-database key? Skip this — you still get the full ICP and emails.</div>
+            </div>
+          </details>
 
           <button type="submit" class="btn block" id="submit-btn">
             <span class="spinner" aria-hidden="true"></span>
