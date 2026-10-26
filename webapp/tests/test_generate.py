@@ -35,3 +35,28 @@ with mock.patch.object(main, "call_llm", side_effect=main.LLMError("https://api.
 with mock.patch.object(main, "call_llm", side_effect=main.LLMError("https://api.openai.com/v1 returned 429: quota")):
     r = c.post("/generate", data={**data, "provider": "openai", "api_key": "sk-test"})
     check("own-key 429 keeps provider error", "returned 429" in r.text)
+
+# Invented recipient claims and years are scrubbed from the model's emails
+live = """# Cold Email Sequence
+
+## Email 1 — Day 0
+**Subject:** AI kiosk for your 2025 lobby
+
+[specific detail about recipient's company] caught my eye, especially your recent push to modernize lobbies.
+
+We build AI concierge kiosks. Would you have 20 minutes to see how this fits your 2025 refresh?
+
+## Email 2 — Follow-Up (Day 5)
+**Subject:** Quick follow-up
+
+I noticed you just opened a new wing. Our kiosks speak 11 languages.
+"""
+out = main.scrub_invented_claims(live, "We build AI concierge kiosks in 11 languages.")
+check("scrub: Email 1 starts with the hook", "**Subject:** AI kiosk for your lobby\n\n" + main.HOOK + "\n\nWe build" in out)
+check("scrub: recipient claims removed", "caught my eye" not in out and "recent push" not in out and "I noticed" not in out)
+check("scrub: invented years removed", "2025" not in out)
+check("scrub: product facts kept", "speak 11 languages" in out and "20 minutes" in out)
+with mock.patch.object(main, "fetch_public_website", return_value=""), \
+     mock.patch.object(main, "call_llm", side_effect=["# Product", "# Target", live]):
+    r = c.post("/generate", data=data)
+    check("generate applies the scrub", "recent push" not in r.text and "Hook: one specific" in r.text)

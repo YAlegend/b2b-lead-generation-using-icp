@@ -59,6 +59,8 @@ def _abuse_check(request: Request, honeypot: str, provider: str, api_key: str) -
 
 EMAIL_SYSTEM = """You are a B2B sales copywriter writing a cold email sequence
 for use in an AI-powered lead generation tool called OpenOutreach.
+You know nothing about the recipient. Every fact about the recipient, and
+every number, result or customer you have not been given, is a [placeholder].
 Output ONLY the markdown content — no preamble, no explanation."""
 
 EMAIL_PROMPT = """
@@ -77,12 +79,17 @@ Write a 3-email cold outreach sequence for this company, following these rules:
 - Email 3 (Breakup, Day 12): 60 words MAX
 - Subject line under 8 words, no clickbait, no ALL CAPS
 - One soft CTA per email (a 20-minute call) — never a hard sell
-- First line of Email 1 must reference something specific about the
-  recipient, not the sender — use a bracketed placeholder like
-  [specific detail about recipient's company] since you don't know them
-- Never invent facts: no made-up statistics, results, customer names, or
-  events (e.g. "you announced last week"). Only use claims from the
-  PRODUCT text above; otherwise use a [placeholder]
+- Email 1's first line must be exactly this placeholder, on its own line,
+  and nothing else about the recipient anywhere in the sequence:
+  [Hook: one specific, true detail about the recipient's company]
+- You know NOTHING about the recipient. Do not guess their plans, projects,
+  priorities, news, budget year or pain points. Banned: "your recent",
+  "your push to", "your plans", "I noticed", "I saw", "congratulations",
+  "as you expand", or any year or date
+- Never invent facts about the sender either: no statistics, numbers,
+  timeframes ("live within weeks"), results ("operators report…"), customer
+  names or features unless they appear word-for-word in the PRODUCT text.
+  If a claim would help but isn't there, write a [placeholder] instead
 - Tone must match the target market's industry (formal for professional
   services, concise/peer-level for tech, etc.)
 
@@ -92,6 +99,8 @@ Output as markdown with this structure:
 
 ## Email 1 — Day 0
 **Subject:** ...
+
+[Hook: one specific, true detail about the recipient's company]
 
 [body]
 
@@ -105,6 +114,49 @@ Output as markdown with this structure:
 
 [body]
 """
+
+HOOK = "[Hook: one specific, true detail about the recipient's company]"
+
+# Phrases that claim knowledge of the recipient. Small models still write
+# them despite the prompt, so sentences containing them are swapped out.
+_RECIPIENT_CLAIM = re.compile(
+    r"\b(your (recent|latest|new|ongoing|upcoming|current) |your (push|plans?|efforts?|focus|move|drive|initiative)\b"
+    r"|you('ve| have)? (recently|just)\b|i (noticed|saw|read|came across)\b|congrat"
+    r"|as you (expand|grow|scale|modernis|moderniz)|caught my eye)",
+    re.I,
+)
+_YEAR = re.compile(r" ?\b(?:19|20)\d{2}\b")
+
+
+def scrub_invented_claims(email_md: str, product_md: str) -> str:
+    """Remove recipient claims and years the model made up.
+
+    Years not in the product text are removed, and a sentence that claims
+    to know the recipient is dropped (a line left empty becomes the [Hook]
+    placeholder). Email 1 is made to start with the hook.
+    """
+    def drop_years(text: str) -> str:
+        return _YEAR.sub(lambda m: m.group(0) if m.group(0).strip() in product_md else "", text)
+
+    def fix_line(line: str) -> str:
+        line = drop_years(line)
+        if line.startswith("#") or line.startswith("**Subject"):
+            return line
+        kept = [p for p in re.split(r"(?<=[.!?])\s+", line) if not _RECIPIENT_CLAIM.search(p)]
+        if line.strip() and not kept:
+            return HOOK
+        return " ".join(kept)
+
+    out = "\n".join(fix_line(l) for l in email_md.splitlines())
+
+    m = re.search(r"(## Email 1[^\n]*\n(?:\*\*Subject:\*\*[^\n]*\n)?\s*)", out)
+    if m and HOOK not in out[m.end():m.end() + len(HOOK) + 2]:
+        rest = out[m.end():]
+        first, _, after = rest.partition("\n")
+        if re.fullmatch(r"\[[^\]]*\]\s*", first):  # model's own lone placeholder
+            rest = after
+        out = out[:m.end()] + HOOK + "\n\n" + rest.lstrip("\n")
+    return re.sub(r"\n{3,}", "\n\n", out)
 
 
 def _slug_from(url: str, description: str) -> str:
@@ -265,6 +317,7 @@ def generate(
             EMAIL_PROMPT.format(product=product_md, target=target_md),
             EMAIL_SYSTEM,
         )
+        email_md = scrub_invented_claims(email_md, product_md)
     except LLMError as exc:
         if provider == "groq" and not api_key and " 429" in str(exc):
             return form_error("The free AI model has hit its limit for now. Try again in a few minutes, "

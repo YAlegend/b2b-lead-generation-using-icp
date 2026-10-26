@@ -208,6 +208,11 @@ Write in first person ("We..."). Be specific, not generic.
 Websites often show sample data in product screenshots or demos (example
 tasks, fake customers, placeholder dashboards). Ignore it — describe only what
 the company itself sells and who it sells to.
+State only facts found in the website content or the user's description.
+Never add numbers (languages, integrations, percentages, timeframes),
+customer results, client names or features that aren't there. If the
+source is thin, write a short file; this file is used as the only source
+of facts for cold emails, so anything invented here ends up in them.
 Output ONLY the markdown content — no preamble, no explanation."""
 
 PRODUCT_PROMPT = """
@@ -235,7 +240,8 @@ and who it helps. Specific and outcome-focused.]
 Skip this section if none found.]
 
 ## Why Clients Choose Us
-[3-5 specific differentiators based on what the website says]
+[Up to 5 specific differentiators the website or description actually
+states. Fewer is fine; don't pad.]
 
 ## Engagement Size
 [State the minimum deal size or price point if visible on the website.
