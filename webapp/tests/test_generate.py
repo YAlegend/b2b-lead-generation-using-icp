@@ -60,3 +60,19 @@ with mock.patch.object(main, "fetch_public_website", return_value=""), \
      mock.patch.object(main, "call_llm", side_effect=["# Product", "# Target", live]):
     r = c.post("/generate", data=data)
     check("generate applies the scrub", "recent push" not in r.text and "Hook: one specific" in r.text)
+
+# gpt-oss thinks before answering: ask for low effort, and reject cut-off replies
+import llm
+def fake_reply(finish):
+    resp = mock.Mock(status_code=200)
+    resp.json.return_value = {"choices": [{"finish_reason": finish, "message": {"content": "# Emails"}}]}
+    return resp
+with mock.patch.object(llm.requests, "post", return_value=fake_reply("stop")) as post:
+    llm.call_llm("groq", "gsk-test", "p", "s")
+    check("gpt-oss asked for low reasoning effort", post.call_args.kwargs["json"].get("reasoning_effort") == "low")
+with mock.patch.object(llm.requests, "post", return_value=fake_reply("length")):
+    try:
+        llm.call_llm("groq", "gsk-test", "p", "s"); cut = False
+    except llm.LLMError as e:
+        cut = "cut off" in str(e)
+    check("cut-off reply raises instead of showing half an email", cut)

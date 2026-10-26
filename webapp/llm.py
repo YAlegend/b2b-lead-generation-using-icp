@@ -76,6 +76,18 @@ class LLMError(RuntimeError):
 def _chat_completions(base_url: str, api_key: str, model: str,
                        system: str, prompt: str, max_tokens: int) -> str:
     """Call an OpenAI-compatible /chat/completions endpoint, retrying on 429."""
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": max_tokens,
+    }
+    # gpt-oss models think before answering, and the thinking counts against
+    # max_tokens. Low effort leaves room for the answer itself.
+    if "gpt-oss" in model:
+        body["reasoning_effort"] = "low"
     for attempt in range(MAX_RETRIES):
         resp = requests.post(
             f"{base_url}/chat/completions",
@@ -83,14 +95,7 @@ def _chat_completions(base_url: str, api_key: str, model: str,
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": max_tokens,
-            },
+            json=body,
             timeout=120,
         )
         if resp.status_code == 429 and attempt < MAX_RETRIES - 1:
@@ -98,8 +103,10 @@ def _chat_completions(base_url: str, api_key: str, model: str,
             continue
         if resp.status_code >= 400:
             raise LLMError(f"{base_url} returned {resp.status_code}: {resp.text[:300]}")
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        choice = resp.json()["choices"][0]
+        if choice.get("finish_reason") == "length":
+            raise LLMError("The AI model's reply was cut off before it finished. Please try again.")
+        return choice["message"]["content"]
 
 
 def call_llm(provider: str, api_key: str, prompt: str, system: str,
