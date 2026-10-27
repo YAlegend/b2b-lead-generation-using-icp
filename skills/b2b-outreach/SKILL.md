@@ -88,8 +88,20 @@ Voice (formal, technical, warm, …):
 Not a fit for (stated exclusions):
 ```
 
-If the site is unreachable or nearly empty, say so and ask the user to paste
-or describe — don't fill the gaps from imagination.
+If a page comes back nearly empty (a menu, a cookie banner, "enable
+JavaScript"), the site is probably built in JavaScript and your fetch got the
+shell, not the text. Before giving up, try in this order:
+
+1. A browser tool, if you have one — it runs the JavaScript.
+2. `https://r.jina.ai/{full URL}` — a free reader that returns the rendered
+   page as text, no key needed.
+3. The raw HTML's `<title>`, meta description and `og:` tags, plus
+   `/sitemap.xml` for page names worth reading.
+4. Search results for the company name (their LinkedIn page, directory
+   listings, press) — mark anything from these as third-party.
+
+If none of these give you real content, say so and ask the user to paste or
+describe — don't fill the gaps from imagination.
 
 ## Step 2 — Confirm
 

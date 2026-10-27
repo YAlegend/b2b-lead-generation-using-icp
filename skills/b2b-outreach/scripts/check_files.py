@@ -3,7 +3,8 @@
 
 Usage: python3 check_files.py outreach/acme-corp
 
-Checks what a model is bad at eyeballing: email word counts, subject length,
+Checks what a model is bad at eyeballing: email word counts (a [Hook] field
+counts as the ~20-word sentence it becomes), subject length,
 leftover placeholders, banned filler phrases, opt-out lines, and leads.csv
 columns/values. Standard library only. Exit code 1 if anything fails.
 """
@@ -17,6 +18,7 @@ from pathlib import Path
 
 EMAIL_LIMITS = {1: 120, 2: 80, 3: 60}
 SUBJECT_MAX_WORDS = 8
+HOOK_WORDS = 20  # a [Hook] merge field becomes one full sentence when filled in
 LEAD_COLUMNS = ["name", "title", "company", "website", "email", "email_confidence",
                 "vertical", "signal", "hook", "source_url"]
 CONFIDENCE_VALUES = {"published", "pattern-confirmed", "guess", ""}
@@ -37,8 +39,17 @@ SUBJECT = re.compile(r"^\**subject\**\s*:\**\s*(.+)$", re.IGNORECASE)
 META_LINE = re.compile(r"^\**(subject|to|day|send|timing|cc)\**\s*:", re.IGNORECASE)
 
 
+HOOK_FIELD = re.compile(r"\[[^\]]*hook[^\]]*\]", re.IGNORECASE)
+
+
 def words(text: str) -> int:
     return len(re.findall(r"[A-Za-z0-9][\w'’.-]*", text))
+
+
+def body_words(text: str) -> int:
+    """Word count after filling in: each [Hook] field counts as a sentence."""
+    hooks = len(HOOK_FIELD.findall(text))
+    return words(HOOK_FIELD.sub(" ", text)) + hooks * HOOK_WORDS
 
 
 def sections(md: str):
@@ -86,7 +97,7 @@ def check_emails(path: Path, fails: list[str]) -> int:
         if not body.strip():
             continue
         count += 1
-        wc = words(body)
+        wc = body_words(body)
         if wc > EMAIL_LIMITS[n]:
             fails.append(f"{path.name}: '{heading}' is {wc} words (limit {EMAIL_LIMITS[n]})")
         if subject and words(subject) > SUBJECT_MAX_WORDS:
@@ -104,7 +115,7 @@ def check_drafts(path: Path, fails: list[str]) -> int:
         if not subject:
             continue  # not an email section
         count += 1
-        wc = words(body)
+        wc = body_words(body)
         if wc > EMAIL_LIMITS[1]:
             fails.append(f"{path.name}: draft '{heading}' is {wc} words (limit {EMAIL_LIMITS[1]})")
         if words(subject) > SUBJECT_MAX_WORDS:
@@ -140,7 +151,10 @@ def check_leads(path: Path, fails: list[str]) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
+    if len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__.strip())
+        return 0
+    if len(sys.argv) != 2 or sys.argv[1].startswith("-"):
         print(__doc__.strip().splitlines()[2])
         return 2
     folder = Path(sys.argv[1])

@@ -2,7 +2,8 @@
 
 ## Non-Negotiable Rules
 
-- Email 1: 120 words MAX. No exceptions.
+- Email 1: 120 words MAX. No exceptions. A `[Hook]` merge field counts as
+  the ~20-word sentence it becomes, so leave room for it.
 - Email 2: 80 words MAX.
 - Email 3 (breakup): 60 words MAX.
 - Subject line: under 8 words, no clickbait, no ALL CAPS
