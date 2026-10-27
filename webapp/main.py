@@ -365,6 +365,7 @@ def generate(
             "product_md": product_md,
             "target_md": target_md,
             "email_md": email_md,
+            "from_description_only": not website_content,
             "leads_output": leads_output,
             "leads_error": leads_error,
             "leads_header": leads_header,

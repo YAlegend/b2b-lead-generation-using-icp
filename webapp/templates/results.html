@@ -36,6 +36,7 @@
         <span class="eyebrow">Your outreach system</span>
         <h1>Ready for <code>{{ slug }}</code></h1>
         <p class="lede">Review, download or copy each file. Check the emails before sending — anything in [brackets] is for you to fill in.</p>
+        {% if from_description_only %}<p class="notice" role="note"><strong>Built from a short description, not a website.</strong> The AI may have added product features or claims you didn't give it. Check the product and emails before sending.</p>{% endif %}
 
         <div class="tabs" role="tablist" aria-label="Generated files">
           <button class="tab" role="tab" id="tab-product" aria-controls="panel-product" aria-selected="true" data-tab="product">Product</button>

@@ -24,7 +24,14 @@ with mock.patch.object(main, "fetch_public_website", return_value=""), \
      mock.patch.object(main, "call_llm", side_effect=["# Product", "# Target", "# Emails"]) as llm:
     r = c.post("/generate", data=data)
     check("no-key run produces results", r.status_code == 200 and llm.call_count == 3)
+    check("description-only run warns to check claims", "Built from a short description" in r.text)
     check("no-key run used groq with empty key", all(a.args[0] == "groq" and a.args[1] == "" for a in llm.call_args_list))
+
+# A website was read: no description-only warning
+with mock.patch.object(main, "fetch_public_website", return_value="Acme builds kiosks."), \
+     mock.patch.object(main, "call_llm", side_effect=["# Product", "# Target", "# Emails"]):
+    r = c.post("/generate", data={**data, "url": "https://acme.example"})
+    check("website run has no description-only warning", r.status_code == 200 and "Built from a short description" not in r.text)
 
 # Free quota exhausted: friendly message instead of the raw Groq error
 with mock.patch.object(main, "call_llm", side_effect=main.LLMError("https://api.groq.com/openai/v1 returned 429: rate_limit_exceeded")):
