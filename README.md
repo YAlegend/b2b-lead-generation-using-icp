@@ -7,6 +7,20 @@ or a free local AI. Self-improving — gets better with every campaign.
 
 ---
 
+## Use it as a skill (no API keys)
+
+Works inside Claude, OpenAI Codex, Hermes Agent, ChatGPT and other agents —
+the agent writes the files and finds leads itself:
+
+```bash
+bash skills/install.sh all
+```
+
+Then say: *"Set up outreach for https://yourcompany.com"*.
+Details: [skills/README.md](./skills/README.md).
+
+---
+
 ## Start Here
 
 ### Windows

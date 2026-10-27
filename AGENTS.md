@@ -5,6 +5,23 @@ a web browser. This file explains how to use it with each major option.
 
 ---
 
+## Fastest path: the no-API-key skill
+
+`skills/b2b-outreach/` is a portable skill (open `SKILL.md` format) that
+works in Claude, OpenAI Codex, Hermes Agent and any other agent. The agent
+writes all 8 files **and** researches leads on the public web itself — no
+LLM API key, no Apollo/PDL/Hunter/BetterContact key.
+
+```bash
+bash skills/install.sh all     # Claude Code + Codex + Hermes, whichever you have
+bash skills/install.sh zip     # zip for Claude.ai or ChatGPT upload
+```
+
+Full instructions per agent: [skills/README.md](./skills/README.md).
+The options below are the older OpenOutreach-based setup, which uses APIs.
+
+---
+
 ## Compatibility Matrix
 
 | Tool | Generates .md files | Runs OpenOutreach LLM | Cost |
@@ -41,10 +58,7 @@ Please follow the B2B Outreach Framework:
 ### Claude Code (skill install)
 
 ```bash
-mkdir -p ~/.claude/skills/b2b-outreach-framework
-cp SKILL.md ~/.claude/skills/b2b-outreach-framework/SKILL.md
-cp -r framework/ ~/.claude/skills/b2b-outreach-framework/
-cp -r openoutreach/ ~/.claude/skills/b2b-outreach-framework/
+bash skills/install.sh claude
 ```
 
 Then just say in Claude Code:
@@ -81,8 +95,8 @@ cd hermes-agent && pip install -e .
 ### Point Hermes Agent at this skill
 
 ```bash
-# Copy SKILL.md into Hermes Agent's skills folder
-cp SKILL.md ~/.hermes/skills/b2b-outreach-framework.md
+# Install the skill into Hermes Agent's skills folder
+bash skills/install.sh hermes
 
 # Run the framework
 hermes run "Generate B2B outreach files for https://yourcompany.com"
@@ -128,7 +142,8 @@ Add the SKILL.md as a project rule:
 ```bash
 # In your project root
 mkdir -p .cursor/rules
-cp SKILL.md .cursor/rules/b2b-outreach-framework.md
+cp skills/b2b-outreach/SKILL.md .cursor/rules/b2b-outreach.md
+# Cursor resolves the references/ paths if skills/b2b-outreach/ is in the project
 ```
 
 Then in Cursor chat:
@@ -142,7 +157,7 @@ Then in Cursor chat:
 
 If you're using ChatGPT, Gemini, Mistral, or any other LLM:
 
-1. Open `SKILL.md` and copy the **Step 3 — Generate All Files** section
+1. Upload `skills/b2b-outreach/SKILL.md` and its `references/` files (see skills/README.md), or paste SKILL.md
 2. Paste it into your LLM with:
    ```
    Company URL: [URL]
